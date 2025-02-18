@@ -1,8 +1,7 @@
-import Image from "next/image";
 import ContentContainer from '.././components/ContentContainer';
-import styles from '../styles/index.module.css';
 import globalStyles from '../styles/globals.module.css';
 import Link from 'next/link';
+
 export default function Home() {
   return (
       <div className={globalStyles.mainContainer}>

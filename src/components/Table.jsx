@@ -1,9 +1,11 @@
-export default function Table() {
-    const datos = [
-        {id: 1, nombre: 'true', edad: 28},
-        {id: 2, nombre: 'Bob', edad: 32},
-        {id: 3, nombre: 'Charlie', edad: 25}
-    ];
+import {Logic} from '@/logic/TruthTableLogic';
+
+export default function Table({expression}) {
+    const truthTable = new Logic();
+    truthTable.generateTruthTable(expression);
+
+    const datos = truthTable.truthTable;
+    console.log(datos);
     const columnas = datos.length > 0 ? Object.keys(datos[0]) : [];
 
     return (

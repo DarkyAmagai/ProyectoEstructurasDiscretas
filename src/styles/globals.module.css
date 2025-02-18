@@ -8,6 +8,8 @@
     width: 70vw;
     border: 2px solid var(--foreground);
     border-radius: 20px;
+    z-index: 1;
+
 }
 
 .divider {
@@ -47,3 +49,14 @@
     background-color: var(--background);
     gap: 10px;
 }
+
+.container p {
+    margin-top: 40px;
+    z-index: 1;
+}
+
+.container a {
+    margin-bottom: 40px;
+    z-index: 0;
+}
+

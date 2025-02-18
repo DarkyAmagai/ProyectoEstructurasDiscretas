@@ -6,35 +6,50 @@ class Logic {
     generateTruthTable(expression) {
         this.truthTable = [];
         const variables = this.getVariables(expression);
+        const subExpressions = this.getSubExpressions(expression);
         const rows = Math.pow(2, variables.length);
+
         for (let i = 0; i < rows; i++) {
-            const row = {};
+            const tempRow = {}; // Fila temporal con valores booleanos
+            const outputRow = {}; // Fila final con valores en string
+
+            // 1. Asignar valores booleanos a las variables
             for (let j = 0; j < variables.length; j++) {
-                row[variables[j]] = (i & Math.pow(2, j)) !== 0;
+                const varName = variables[j];
+                tempRow[varName] = (i & (1 << j)) !== 0;
+                outputRow[varName] = tempRow[varName] ? 'true' : 'false'; // Convertir a string
             }
-            row.result = this.evaluate(expression, row);
-            this.truthTable.push(row);
+
+            // 2. Evaluar subexpresiones y resultado (usando valores booleanos)
+            subExpressions.forEach(subExpr => {
+                const result = this.evaluate(subExpr, tempRow);
+                outputRow[subExpr] = result ? 'true' : 'false'; // Convertir a string
+            });
+
+            // Evaluar la expresión principal
+            const mainResult = this.evaluate(expression, tempRow);
+            outputRow.result = mainResult ? 'true' : 'false';
+
+            this.truthTable.push(outputRow);
         }
     }
 
     getVariables(expression) {
-        const variables = [];
-        const regex = /[a-zA-Z]/g;
-        let match;
-        while ((match = regex.exec(expression)) !== null) {
-            if (!variables.includes(match[0])) {
-                variables.push(match[0]);
-            }
-        }
-        return variables;
+        const regex = /[A-Za-z]/g;
+        return [...new Set(expression.match(regex))].sort(); // Ordenar y eliminar duplicados
     }
 
-    evaluate(expression, row) {
-        const variables = this.getVariables(expression);
-        let result = expression;
-        for (let i = 0; i < variables.length; i++) {
-            result = result.replace(new RegExp(variables[i], 'g'), row[variables[i]]);
-        }
-        return eval(result);
+    getSubExpressions(expression) {
+        const regex = /\([^()]+\)/g; // Captura subexpresiones no anidadas
+        const matches = expression.match(regex) || [];
+        return [...new Set(matches)]; // Eliminar duplicados
+    }
+
+    evaluate(expr, tempRow) {
+        // Reemplazar variables por valores booleanos del tempRow
+        const exprWithValues = expr.replace(/[A-Za-z]+/g, (match) => tempRow[match]);
+        return eval(exprWithValues);
     }
 }
+
+export {Logic};
