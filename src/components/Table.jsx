@@ -9,23 +9,27 @@ export default function Table({expression}) {
     const columnas = datos.length > 0 ? Object.keys(datos[0]) : [];
 
     return (
-        <table style={{
-            borderCollapse: 'collapse',
-            width: '95%',
-            borderRadius: '50%'
-        }}>
+        <table
+            style={{
+                borderCollapse: 'collapse',
+                width: '95%',
+                borderRadius: '50%',
+            }}
+        >
             {/* Cabecera */}
             <thead>
-            <tr style={{
-                backgroundColor: 'var(--background)'
-            }}>
+            <tr
+                style={{
+                    backgroundColor: 'var(--background)',
+                }}
+            >
                 {columnas.map((columna, index) => (
                     <th
                         key={index}
                         style={{
                             padding: '12px',
                             border: '1px solid var(--foreground)',
-                            textAlign: 'center'
+                            textAlign: 'center',
                         }}
                     >
                         {columna.toUpperCase()}
@@ -40,7 +44,7 @@ export default function Table({expression}) {
                 <tr
                     key={filaIndex}
                     style={{
-                        backgroundColor: filaIndex % 2 === 0 ? '#111727' : '#252b3e'
+                        backgroundColor: filaIndex % 2 === 0 ? '#111727' : '#252b3e',
                     }}
                 >
                     {columnas.map((columna, columnaIndex) => (
@@ -52,7 +56,17 @@ export default function Table({expression}) {
                                 color: fila[columna] === 'true' ? 'green' : 'red',
                             }}
                         >
-                            {fila[columna]}
+                            {typeof fila[columna] === 'object' ? (
+                                <ul style={{listStyle: 'none', margin: 0, padding: 0}}>
+                                    {Object.entries(fila[columna]).map(([subExp, subVal]) => (
+                                        <li key={subExp}>
+                                            {subExp}: {subVal}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                fila[columna]
+                            )}
                         </td>
                     ))}
                 </tr>

@@ -26,20 +26,33 @@ export default function Home() {
             )
         }
     }
+    const add_expression_text = (text) => {
+        setExpression(expression + text);
+    }
+
+
     return (
         <div className={GlobalStyles.mainContainer}>
             <div style={{
                 display: 'flex',
                 flexDirection: 'row',
                 justifyContent: 'left',
-                paddingLeft: '5%',
                 width: '100%'
             }}>
-                <Link href={'/'}>Inicio</Link>
+                <Link style={{marginTop: '10px', marginLeft: '10px'}} href={'/'}>Inicio</Link>
             </div>
             <label>
                 Introduce la expresión: <input value={expression} onChange={e => setExpression(e.target.value)}></input>
             </label>
+            <div style={{
+                display: 'flex',
+                width: '100%',
+                flexAlign: 'row',
+                justifyContent: 'center',
+                itemAlign: 'center'
+            }}>
+                <button className={GlobalStyles.button} onClick={() => add_expression_text('->')}>texto</button>
+            </div>
             {
                 creador_tabla()
             }
