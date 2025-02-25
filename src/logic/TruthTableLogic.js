@@ -5,28 +5,22 @@ class Logic {
 
     generateTruthTable(expression) {
         this.truthTable = [];
+        expression = expression.replace(/\s+/g, '');
         const variables = this.getVariables(expression);
-        const subExpressions = this.getSubExpressions(expression);
         const rows = Math.pow(2, variables.length);
 
         for (let i = 0; i < rows; i++) {
-            const tempRow = {}; // Fila temporal con valores booleanos
-            const outputRow = {}; // Fila final con valores en string
+            const tempRow = {};
+            const outputRow = {};
 
-            // 1. Asignar valores booleanos a las variables
+            // Asignar valores a variables
             for (let j = 0; j < variables.length; j++) {
                 const varName = variables[j];
                 tempRow[varName] = (i & (1 << j)) !== 0;
-                outputRow[varName] = tempRow[varName] ? 'true' : 'false'; // Convertir a string
+                outputRow[varName] = tempRow[varName] ? 'true' : 'false';
             }
 
-            // 2. Evaluar subexpresiones y resultado (usando valores booleanos)
-            subExpressions.forEach(subExpr => {
-                const result = this.evaluate(subExpr, tempRow);
-                outputRow[subExpr] = result ? 'true' : 'false'; // Convertir a string
-            });
-
-            // Evaluar la expresión principal
+            // Evaluar expresión principal
             const mainResult = this.evaluate(expression, tempRow);
             outputRow.result = mainResult ? 'true' : 'false';
 
@@ -35,19 +29,25 @@ class Logic {
     }
 
     getVariables(expression) {
-        const regex = /[A-Za-z]/g;
-        return [...new Set(expression.match(regex))].sort(); // Ordenar y eliminar duplicados
-    }
-
-    getSubExpressions(expression) {
-        const regex = /\([^()]+\)/g; // Captura subexpresiones no anidadas
-        const matches = expression.match(regex) || [];
-        return [...new Set(matches)]; // Eliminar duplicados
+        const regex = /[A-Za-z]+/g;
+        return [...new Set(expression.match(regex) || [])].sort();
     }
 
     evaluate(expr, tempRow) {
-        // Reemplazar variables por valores booleanos del tempRow
-        const exprWithValues = expr.replace(/[A-Za-z]+/g, (match) => tempRow[match]);
+        let exprWithValues = expr.replace(/[A-Za-z]+/g, match => {
+            return tempRow[match] !== undefined ? tempRow[match] : match;
+        });
+
+        // Reemplazar símbolos lógicos
+        exprWithValues = exprWithValues
+            .replace(/¬/g, '!').replace(/˜/g, '!')
+            .replace(/∧/g, '&&').replace(/&/g, '&&')
+            .replace(/∨/g, '||').replace(/ǀǀ/g, '||')
+            .replace(/⊕/g, '!==')
+            .replace(/↔/g, '===')
+            .replace(/→|⇒/g, '->') // Unificar implicaciones
+            .replace(/([A-Za-z]+)\s*->\s*/g, (_, left) => `!(${left}) || `);
+
         return eval(exprWithValues);
     }
 }
