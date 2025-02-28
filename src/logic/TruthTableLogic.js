@@ -7,6 +7,10 @@ class Logic {
         this.truthTable = [];
         expression = expression.replace(/\s+/g, '');
         const variables = this.getVariables(expression);
+
+        // Encontrar todas las subexpresiones entre paréntesis
+        const subexpressions = this.findSubexpressions(expression);
+
         const rows = Math.pow(2, variables.length);
 
         for (let i = 0; i < rows; i++) {
@@ -20,6 +24,14 @@ class Logic {
                 outputRow[varName] = tempRow[varName] ? 'true' : 'false';
             }
 
+            // Evaluar cada subexpresión y añadirla al resultado
+            for (const subexpr of subexpressions) {
+                if (subexpr !== expression) { // Evitar duplicar la expresión principal
+                    const subResult = this.evaluate(subexpr, tempRow);
+                    outputRow[`(${subexpr})`] = subResult ? 'true' : 'false';
+                }
+            }
+
             // Evaluar expresión principal
             const mainResult = this.evaluate(expression, tempRow);
             outputRow.result = mainResult ? 'true' : 'false';
@@ -31,6 +43,26 @@ class Logic {
     getVariables(expression) {
         const regex = /[A-Za-z]+/g;
         return [...new Set(expression.match(regex) || [])].sort();
+    }
+
+    findSubexpressions(expression) {
+        const subexpressions = new Set([expression]);
+        let stack = [];
+        let currentExpr = '';
+
+        for (let i = 0; i < expression.length; i++) {
+            const char = expression[i];
+
+            if (char === '(') {
+                stack.push(i);
+            } else if (char === ')' && stack.length > 0) {
+                const start = stack.pop();
+                const subexpr = expression.substring(start + 1, i);
+                subexpressions.add(subexpr);
+            }
+        }
+
+        return Array.from(subexpressions);
     }
 
     evaluate(expr, tempRow) {
