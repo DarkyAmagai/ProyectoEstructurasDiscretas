@@ -5,6 +5,13 @@ class Logic {
 
     generateTruthTable(expression) {
         this.truthTable = [];
+
+        // Validar la expresión antes de procesar
+        const validationResult = this.validateExpression(expression);
+        if (!validationResult.valid) {
+            throw new Error(`Error de sintaxis: ${validationResult.message}`);
+        }
+
         expression = expression.replace(/\s+/g, '');
         const variables = this.getVariables(expression);
 
@@ -40,6 +47,190 @@ class Logic {
         }
     }
 
+    validateExpression(expression) {
+        if (!expression || expression.trim() === '') {
+            return {valid: false, message: "La expresión está vacía"};
+        }
+
+        // Verificar paréntesis balanceados
+        const parenthesesResult = this.checkBalancedParentheses(expression);
+        if (!parenthesesResult.valid) {
+            return parenthesesResult;
+        }
+
+        // Verificar operadores válidos y su uso correcto
+        const operatorsResult = this.checkOperators(expression);
+        if (!operatorsResult.valid) {
+            return operatorsResult;
+        }
+
+        // Verificar variables válidas
+        const variablesResult = this.checkVariables(expression);
+        if (!variablesResult.valid) {
+            return variablesResult;
+        }
+
+        // Verificar que no haya operadores consecutivos incorrectos
+        const consecutiveOperatorsResult = this.checkConsecutiveOperators(expression);
+        if (!consecutiveOperatorsResult.valid) {
+            return consecutiveOperatorsResult;
+        }
+
+        return {valid: true};
+    }
+
+    checkBalancedParentheses(expression) {
+        const stack = [];
+
+        for (let i = 0; i < expression.length; i++) {
+            const char = expression[i];
+
+            if (char === '(') {
+                stack.push({char, position: i});
+            } else if (char === ')') {
+                if (stack.length === 0 || stack[stack.length - 1].char !== '(') {
+                    return {
+                        valid: false,
+                        message: `Paréntesis de cierre sin su correspondiente apertura en la posición ${i + 1}`
+                    };
+                }
+                stack.pop();
+            }
+        }
+
+        if (stack.length > 0) {
+            const unmatched = stack[stack.length - 1];
+            return {
+                valid: false,
+                message: `Paréntesis de apertura sin su correspondiente cierre en la posición ${unmatched.position + 1}`
+            };
+        }
+
+        return {valid: true};
+    }
+
+    checkOperators(expression) {
+        // Definir operadores válidos
+        const validOperators = ['∧', '∨', '⊕', '↔', '→', '⇒', '->', '!', '¬', '˜', '~', '&&', '||', 'ǀǀ'];
+        const operatorRegex = /[∧∨⊕↔→⇒!¬˜~]|->|&&|\|\||ǀǀ/g;
+
+        // Verificar que la expresión no empiece ni termine con operador binario
+        const binaryOperators = ['∧', '∨', '⊕', '↔', '→', '⇒', '->', '&&', '||', 'ǀǀ'];
+
+        const trimmedExpr = expression.trim();
+
+        for (const op of binaryOperators) {
+            if (trimmedExpr.startsWith(op)) {
+                return {
+                    valid: false,
+                    message: `La expresión no puede comenzar con el operador binario '${op}'`
+                };
+            }
+
+            if (trimmedExpr.endsWith(op)) {
+                return {
+                    valid: false,
+                    message: `La expresión no puede terminar con el operador binario '${op}'`
+                };
+            }
+        }
+
+        // Verificar operadores inválidos o malformados
+        let match;
+        while ((match = operatorRegex.exec(trimmedExpr)) !== null) {
+            const operator = match[0];
+            if (!validOperators.includes(operator)) {
+                return {
+                    valid: false,
+                    message: `Operador inválido '${operator}' en la posición ${match.index + 1}`
+                };
+            }
+        }
+
+        return {valid: true};
+    }
+
+    checkVariables(expression) {
+        // Eliminar operadores y paréntesis para verificar que solo queden variables válidas
+        const operatorsAndParentheses = /[∧∨⊕↔→⇒!¬˜~()]|->|&&|\|\||ǀǀ/g;
+        const cleaned = expression.replace(operatorsAndParentheses, ' ').trim();
+
+        if (cleaned === '') {
+            return {valid: true}; // No hay variables, puede ser una expresión como (p)
+        }
+
+        const tokens = cleaned.split(/\s+/);
+
+        for (const token of tokens) {
+            if (token && !/^[A-Za-z]+$/.test(token)) {
+                return {
+                    valid: false,
+                    message: `Variable inválida '${token}'. Las variables deben ser letras.`
+                };
+            }
+        }
+
+        return {valid: true};
+    }
+
+    checkConsecutiveOperators(expression) {
+        // Verificar que no haya operadores binarios consecutivos
+        const binaryOperators = ['∧', '∨', '⊕', '↔', '→', '⇒', '&&', '||', 'ǀǀ'];
+
+        for (let i = 0; i < expression.length - 1; i++) {
+            const current = expression[i];
+            const next = expression[i + 1];
+
+            // Manejar caso especial de -> (2 caracteres)
+            if (current === '-' && next === '>') {
+                if (i === 0 || i === expression.length - 2) {
+                    return {
+                        valid: false,
+                        message: `Operador de implicación '->'' mal colocado en la posición ${i + 1}`
+                    };
+                }
+
+                // Verificar que el siguiente caracter después de -> no sea un operador binario
+                if (i + 2 < expression.length) {
+                    const afterImplication = expression[i + 2];
+                    if (binaryOperators.some(op => op.startsWith(afterImplication))) {
+                        return {
+                            valid: false,
+                            message: `Operadores binarios consecutivos '-> ${afterImplication}' en la posición ${i + 1}`
+                        };
+                    }
+                }
+
+                // Verificar que el caracter antes de -> no sea un operador binario
+                if (i > 0) {
+                    const beforeImplication = expression[i - 1];
+                    if (binaryOperators.some(op => op.endsWith(beforeImplication))) {
+                        return {
+                            valid: false,
+                            message: `Operadores binarios consecutivos '${beforeImplication} ->' en la posición ${i}`
+                        };
+                    }
+                }
+
+                // Saltamos el siguiente caracter ya que es parte del operador ->
+                i++;
+                continue;
+            }
+
+            // Para operadores de un solo caracter
+            if (binaryOperators.includes(current)) {
+                if (binaryOperators.includes(next) || next === '-') {
+                    return {
+                        valid: false,
+                        message: `Operadores binarios consecutivos '${current}${next}' en la posición ${i + 1}`
+                    };
+                }
+            }
+        }
+
+        return {valid: true};
+    }
+
     getVariables(expression) {
         const regex = /[A-Za-z]+/g;
         return [...new Set(expression.match(regex) || [])].sort();
@@ -48,7 +239,6 @@ class Logic {
     findSubexpressions(expression) {
         const subexpressions = new Set([expression]);
         let stack = [];
-        let currentExpr = '';
 
         for (let i = 0; i < expression.length; i++) {
             const char = expression[i];
@@ -98,8 +288,7 @@ class Logic {
         try {
             return eval(exprCopy);
         } catch (error) {
-            console.error("Error evaluating expression:", exprCopy);
-            return false;
+            throw new Error(`Error al evaluar la expresión: ${error.message} en "${exprCopy}"`);
         }
     }
 

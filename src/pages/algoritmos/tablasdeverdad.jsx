@@ -78,6 +78,8 @@ export default function Home() {
                 <ExpressionButton expression={'⊕'}></ExpressionButton>
                 <ExpressionButton expression={'↔'}></ExpressionButton>
                 <ExpressionButton expression={'→'}></ExpressionButton>
+                <ExpressionButton expression={'('}></ExpressionButton>
+                <ExpressionButton expression={')'}></ExpressionButton>
             </div>
             {
                 creador_tabla()
