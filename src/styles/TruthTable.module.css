@@ -1,0 +1,102 @@
+.tableContainer {
+    width: 100%;
+    overflow-x: auto;
+    margin: 2rem 0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.truthTable {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    font-family: 'Fira Code', monospace;
+    background-color: var(--background);
+    color: var(--foreground);
+}
+
+.truthTable th {
+    background-color: rgba(128, 128, 128, 0.2);
+    padding: 0.75rem;
+    border-bottom: 2px solid var(--foreground);
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.truthTable td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid rgba(225, 232, 237, 0.4);
+    color: var(--foreground);
+}
+
+.truthTable tr:last-child td {
+    border-bottom: none;
+}
+
+.resultColumn {
+    background-color: rgba(80, 80, 80, 0.3);
+    font-weight: 600;
+}
+
+.trueValue {
+    color: var(--success-color) !important;
+    font-weight: 600;
+}
+
+.falseValue {
+    color: var(--error-color) !important;
+    font-weight: 600;
+}
+
+.emptyMessage {
+    text-align: center;
+    padding: 2rem;
+    color: #718096;
+    font-style: italic;
+}
+
+.errorContainer {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    background-color: #fff5f5;
+    border: 1px solid #feb2b2;
+}
+
+.errorTitle {
+    color: #e53e3e;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+}
+
+.errorMessage {
+    color: #4a5568;
+    margin: 0;
+}
+
+.formContainer {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.inputLabel {
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.symbolButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+    justify-content: center;
+    width: 100%;
+    max-width: 650px;
+}

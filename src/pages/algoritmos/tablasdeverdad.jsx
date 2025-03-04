@@ -1,89 +1,77 @@
-import GlobalStyles from '../../styles/globals.module.css';
-import Table from '../../components/Table.jsx';
-import Link from 'next/link';
-import {Logic} from '@/logic/TruthTableLogic';
+import GlobalStyles from '@/styles/globals.module.css';
 import {useState} from 'react';
+import Link from 'next/link';
+import TruthTable from '@/components/TruthTable';
+import styles from '@/styles/TruthTable.module.css';
 
-export default function Home() {
+export default function TruthTablePage() {
     const [expression, setExpression] = useState('');
-    const creador_tabla = () => {
-        try {
-            const tempLogic = new Logic();
-            tempLogic.generateTruthTable(expression);
-            return (<Table expression={expression}></Table>)
-        } catch (e) {
-            return (
-                <div style={{
-                    textAlign: 'center'
-                }}>
-                    <span style={{
-                        color: 'red'
-                    }}>
-                        <h1>Hubo un error</h1>
-                        <p>{e.message}</p>
-                    </span>
-                </div>
-            )
-        }
-    }
-    const add_expression_text = (text) => {
-        setExpression(expression + text);
-    }
 
-    const ExpressionButton = ({expression}) => {
+    // Agregar símbolos lógicos al input
+    const addSymbol = (symbol) => {
+        setExpression(prevExpression => prevExpression + symbol);
+    };
+
+    // Componente para botones de símbolos lógicos
+    const SymbolButton = ({symbol, label}) => {
         return (
-            <button className={GlobalStyles.button} onClick={() => add_expression_text(expression)}>
-                <span style={{textAlign: 'Center', justifyContent: 'center'}}>{expression}</span>
+            <button
+                className={GlobalStyles.button}
+                onClick={() => addSymbol(symbol)}
+                aria-label={label || symbol}
+                type="button"
+            >
+                {symbol}
             </button>
-        )
-    }
+        );
+    };
 
     return (
         <div className={GlobalStyles.mainContainer}>
+            {/* Barra de navegación */}
             <div style={{
                 display: 'flex',
-                flexDirection: 'row',
+                width: '100%',
                 justifyContent: 'left',
-                width: '100%'
+                padding: '1rem 2.5%'
             }}>
-                <Link style={{marginTop: '2%', marginLeft: '2.5%'}} href={'/'}>Inicio</Link>
+                <Link href="/">Inicio</Link>
             </div>
-            <label style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                width: '100%',
-                marginTop: '20px',
-                alignItems: 'center'
-            }}>
-                <h1 style={{
-                    margin: '10px 10px'
-                }}
-                    className={GlobalStyles.multicolor} style={{fontSize: '3rem', marginBottom: '20px'}}>TABLAS DE
-                    VERDAD</h1>
-                <input className={GlobalStyles.inputText} value={expression}
-                       onChange={e => setExpression(e.target.value)}></input>
-            </label>
-            <div style={{
-                display: 'flex',
-                width: '100%',
-                flexAlign: 'row',
-                justifyContent: 'center',
-                itemAlign: 'center',
-                gap: '10px'
-            }}>
-                <ExpressionButton expression={'¬'}></ExpressionButton>
-                <ExpressionButton expression={'∧'}></ExpressionButton>
-                <ExpressionButton expression={'∨'}></ExpressionButton>
-                <ExpressionButton expression={'⊕'}></ExpressionButton>
-                <ExpressionButton expression={'↔'}></ExpressionButton>
-                <ExpressionButton expression={'→'}></ExpressionButton>
-                <ExpressionButton expression={'('}></ExpressionButton>
-                <ExpressionButton expression={')'}></ExpressionButton>
+
+            {/* Título principal */}
+            <h1 className={GlobalStyles.multicolor} style={{fontSize: '3rem', marginBottom: '2rem'}}>
+                TABLAS DE VERDAD
+            </h1>
+
+            {/* Formulario de expresión lógica */}
+            <div className={styles.formContainer}>
+                <label htmlFor="logicExpression" className={styles.inputLabel}>
+                    Introduce una expresión lógica:
+                </label>
+                <input
+                    id="logicExpression"
+                    className={GlobalStyles.inputText}
+                    style={{fontFamily: 'Fira Code, monospace'}}
+                    value={expression}
+                    onChange={(e) => setExpression(e.target.value)}
+                    placeholder="Ej: p ∧ (q → r)"
+                />
+
+                {/* Botones de símbolos lógicos */}
+                <div className={styles.symbolButtons}>
+                    <SymbolButton symbol="¬" label="Negación"/>
+                    <SymbolButton symbol="∧" label="Conjunción (Y)"/>
+                    <SymbolButton symbol="∨" label="Disyunción (O)"/>
+                    <SymbolButton symbol="⊕" label="Disyunción exclusiva (XOR)"/>
+                    <SymbolButton symbol="↔" label="Bicondicional (Si y solo si)"/>
+                    <SymbolButton symbol="→" label="Condicional (Si...entonces)"/>
+                    <SymbolButton symbol="(" label="Paréntesis izquierdo"/>
+                    <SymbolButton symbol=")" label="Paréntesis derecho"/>
+                </div>
             </div>
-            {
-                creador_tabla()
-            }
+
+            {/* Tabla de verdad */}
+            <TruthTable expression={expression}/>
         </div>
-    )
+    );
 }

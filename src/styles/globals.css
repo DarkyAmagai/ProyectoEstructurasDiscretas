@@ -3,18 +3,82 @@
 }
 
 :root {
-  --background: #ededed;
-  --foreground: #0a0a0a;
+  /* Colores básicos */
+  --background: #f5f7fa;
+  --foreground: #1a202c;
+  --background-secondary: #ebf0f7;
+  --foreground-secondary: #4a5568;
+
+  /* Colores de botones y acciones */
   --button-color: var(--background);
   --button-border: var(--foreground);
+  --button-hover-bg: var(--foreground);
+  --button-hover-color: var(--background);
+
+  /* Colores de acento y marca */
+  --accent-color: #6a5acd;
+  --accent-light: #9282eb;
+  --accent-dark: #4c3db9;
+  --accent-bg: rgba(106, 90, 205, 0.1);
+
+  /* Colores semánticos */
+  --success-color: #38a169;
+  --success-light: #9ae6b4;
+  --error-color: #e53e3e;
+  --error-light: #feb2b2;
+  --warning-color: #d69e2e;
+  --info-color: #3182ce;
+
+  /* Espaciado y bordes */
+  --border-radius-sm: 0.375rem;
+  --border-radius-md: 0.75rem;
+  --border-radius-lg: 1.25rem;
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+
+  /* Sombras */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Colores básicos */
+    --background: #171923;
+    --foreground: #f7fafc;
+    --background-secondary: #2d3748;
+    --foreground-secondary: #e2e8f0;
+
+    /* Botones y acciones */
     --button-color: var(--background);
     --button-border: var(--foreground);
+    --button-hover-bg: var(--foreground);
+    --button-hover-color: var(--background);
+
+    /* Colores de acento y marca */
+    --accent-color: #805ad5;
+    --accent-light: #b794f4;
+    --accent-dark: #553c9a;
+    --accent-bg: rgba(128, 90, 213, 0.15);
+
+    /* Colores semánticos */
+    --success-color: #48bb78;
+    --success-light: #68d391;
+    --error-color: #f56565;
+    --error-light: #fc8181;
+    --warning-color: #ecc94b;
+    --info-color: #4299e1;
+
+    /* Sombras */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.45);
+    --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.5);
   }
 }
 
