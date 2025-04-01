@@ -108,7 +108,7 @@ class SetTheory {
             return set.membershipTest(element);
         }
         throw new Error(`El conjunto '${setName}' no existe`);
-    }
+    } //ok
 
     /**
      * Calcula la unión de dos conjuntos
