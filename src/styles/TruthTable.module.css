@@ -3,15 +3,16 @@
     overflow-x: auto;
     margin: 2rem 0;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    border-radius: 0.75rem;
+    border-radius: var(--border-radius-md);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS */
 }
 
 .truthTable {
     width: 100%;
     border-collapse: collapse;
     text-align: center;
-    font-family: 'Fira Code', monospace;
+    font-family: 'Fira Code', monospace, sans-serif;
     background-color: var(--background);
     color: var(--foreground);
 }
@@ -22,6 +23,7 @@
     border-bottom: 2px solid var(--foreground);
     font-weight: 600;
     color: var(--foreground);
+    white-space: nowrap;
 }
 
 .truthTable td {
@@ -57,23 +59,25 @@
 }
 
 .errorContainer {
-    margin: 2rem 0;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
+    margin: 1.5rem 0;
+    padding: 1rem;
+    border-radius: var(--border-radius-md);
     background-color: #fff5f5;
     border: 1px solid #feb2b2;
+    width: 100%;
 }
 
 .errorTitle {
     color: #e53e3e;
     margin-top: 0;
     margin-bottom: 0.5rem;
-    font-size: 1.25rem;
+    font-size: var(--font-size-md);
 }
 
 .errorMessage {
     color: #4a5568;
     margin: 0;
+    font-size: var(--font-size-sm);
 }
 
 .formContainer {
@@ -87,7 +91,7 @@
 
 .inputLabel {
     margin-bottom: 0.75rem;
-    font-size: 1.1rem;
+    font-size: var(--font-size-md);
     font-weight: 500;
 }
 
@@ -99,4 +103,41 @@
     justify-content: center;
     width: 100%;
     max-width: 650px;
+}
+
+/* Media queries para dispositivos móviles */
+@media screen and (max-width: 768px) {
+    .tableContainer {
+        margin: 1rem 0;
+        border-radius: var(--border-radius-sm);
+    }
+
+    .truthTable th,
+    .truthTable td {
+        padding: 0.4rem;
+        font-size: var(--font-size-xs);
+    }
+
+    .errorContainer {
+        padding: 0.75rem;
+        margin: 1rem 0;
+    }
+
+    .errorTitle {
+        font-size: var(--font-size-sm);
+    }
+
+    .symbolButtons {
+        gap: 0.5rem;
+        margin: 1rem 0;
+    }
+
+    .inputLabel {
+        font-size: var(--font-size-sm);
+        margin-bottom: 0.5rem;
+    }
+
+    .formContainer {
+        margin-bottom: 1rem;
+    }
 }

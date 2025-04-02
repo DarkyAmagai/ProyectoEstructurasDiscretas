@@ -418,6 +418,7 @@
     height: 180px;
     position: relative;
     flex-shrink: 0;
+    margin: 0 auto;
 }
 
 .vennCircle {
@@ -496,4 +497,107 @@
 .vennLabelB {
     top: 50px;
     right: 40px;
+}
+
+/* Media queries para dispositivos móviles */
+@media screen and (max-width: 768px) {
+    .container {
+        padding: 1rem 0.5rem;
+    }
+
+    .title {
+        font-size: 1.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sectionTitle {
+        font-size: 1.4rem;
+        margin-bottom: 1rem;
+    }
+
+    .setCard {
+        padding: 1.25rem;
+    }
+
+    .setName {
+        font-size: 1.1rem;
+    }
+
+    .controls {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .inputGroup {
+        min-width: 100%;
+    }
+
+    .operationForm {
+        gap: 0.75rem;
+        padding: 0.75rem;
+        flex-direction: column;
+    }
+
+    .select {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .exampleContainer {
+        grid-template-columns: 1fr;
+    }
+
+    .chip {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.75rem;
+    }
+
+    .operationDescription {
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    .vennContainer {
+        width: 150px;
+        height: 150px;
+    }
+
+    .vennCircle {
+        width: 80px;
+        height: 80px;
+    }
+
+    .vennCircleA {
+        left: 20px;
+        top: 20px;
+    }
+
+    .vennCircleB {
+        left: 60px;
+        top: 20px;
+    }
+
+    .vennLabel {
+        font-size: 14px;
+    }
+
+    .vennLabelA {
+        top: 40px;
+        left: 30px;
+    }
+
+    .vennLabelB {
+        top: 40px;
+        right: 30px;
+    }
+
+    .actionButton {
+        padding: 0.6rem 1rem;
+        margin: 0.5rem;
+        font-size: 0.9rem;
+    }
 }
