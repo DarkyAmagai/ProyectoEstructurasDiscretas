@@ -4,6 +4,16 @@ class SetTheory {
         this.infiniteSets = new Map();
         // Caché para operaciones frecuentes
         this.operationCache = new Map();
+        // Modo paso a paso
+        this.stepByStepMode = false;
+    }
+
+    /**
+     * Activa o desactiva el modo paso a paso
+     * @param {boolean} mode - True para activar, false para desactivar
+     */
+    setStepByStepMode(mode) {
+        this.stepByStepMode = Boolean(mode);
     }
 
     /**
@@ -114,22 +124,46 @@ class SetTheory {
      * Calcula la unión de dos conjuntos
      * @param {string} set1 - Nombre del primer conjunto
      * @param {string} set2 - Nombre del segundo conjunto
-     * @returns {Array|Object} - Resultado de la unión
+     * @returns {Array|Object} - Resultado de la unión, o un objeto con el resultado y los pasos si stepByStepMode está activo
      */
     union(set1, set2) {
         // Validación de existencia de conjuntos
         this._validateSetsExist(set1, set2);
 
-        // Verificar caché
-        const cacheKey = this._getCacheKey('union', set1, set2);
-        if (this.operationCache.has(cacheKey)) {
-            return this.operationCache.get(cacheKey);
+        // Verificar caché solo si no estamos en modo paso a paso
+        if (!this.stepByStepMode) {
+            const cacheKey = this._getCacheKey('union', set1, set2);
+            if (this.operationCache.has(cacheKey)) {
+                return this.operationCache.get(cacheKey);
+            }
+        }
+
+        // Preparar pasos para el modo paso a paso
+        const steps = [];
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Identificar los elementos de los conjuntos ${set1} y ${set2}`,
+                detail: `Conjunto ${set1}: ${this._getSetRepresentation(set1)}\nConjunto ${set2}: ${this._getSetRepresentation(set2)}`
+            });
         }
 
         // Casos especiales con conjuntos infinitos
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('union', set1, set2);
-            this.operationCache.set(cacheKey, result);
+
+            if (this.stepByStepMode) {
+                steps.push({
+                    description: `Operación con conjuntos infinitos`,
+                    detail: `La unión de conjuntos infinitos se representa simbólicamente`
+                });
+                steps.push({
+                    description: `Resultado final`,
+                    detail: `${set1} ∪ ${set2} = ${result.representation}`
+                });
+                return {result, steps};
+            }
+
+            this.operationCache.set(this._getCacheKey('union', set1, set2), result);
             return result;
         }
 
@@ -137,13 +171,58 @@ class SetTheory {
         const elements1 = this.sets.get(set1);
         const elements2 = this.sets.get(set2);
 
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Tomar todos los elementos del primer conjunto ${set1}`,
+                detail: `Elementos iniciales: {${elements1.join(', ')}}`
+            });
+
+            const uniqueInSecond = elements2.filter(element => !elements1.includes(element));
+
+            steps.push({
+                description: `Agregar elementos del segundo conjunto ${set2} que no estén en el primero`,
+                detail: `Elementos a agregar: {${uniqueInSecond.length > 0 ? uniqueInSecond.join(', ') : '∅'}}`
+            });
+        }
+
         // Usar un Set para eliminar duplicados de forma eficiente
         const unionSet = new Set(elements1);
         elements2.forEach(element => unionSet.add(element));
 
         const result = Array.from(unionSet);
-        this.operationCache.set(cacheKey, result);
+
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Resultado final`,
+                detail: `${set1} ∪ ${set2} = {${result.join(', ')}}`
+            });
+            return {
+                result,
+                steps,
+                type: 'finite',
+                elements: result,
+                representation: `{${result.join(', ')}}`
+            };
+        }
+
+        this.operationCache.set(this._getCacheKey('union', set1, set2), result);
         return result;
+    }
+
+    /**
+     * Obtiene una representación textual de un conjunto
+     * @private
+     * @param {string} setName - Nombre del conjunto
+     * @returns {string} - Representación del conjunto
+     */
+    _getSetRepresentation(setName) {
+        if (this.sets.has(setName)) {
+            const elements = this.sets.get(setName);
+            return elements.length > 0 ? `{${elements.join(', ')}}` : '∅';
+        } else if (this.infiniteSets.has(setName)) {
+            return this.infiniteSets.get(setName).definition;
+        }
+        return '?';
     }
 
     /**
@@ -156,18 +235,81 @@ class SetTheory {
         // Validación de existencia de conjuntos
         this._validateSetsExist(set1, set2);
 
+        // Verificar caché solo si no estamos en modo paso a paso
+        if (!this.stepByStepMode) {
+            const cacheKey = this._getCacheKey('intersection', set1, set2);
+            if (this.operationCache.has(cacheKey)) {
+                return this.operationCache.get(cacheKey);
+            }
+        }
+
+        // Preparar pasos para el modo paso a paso
+        const steps = [];
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Identificar los elementos de los conjuntos ${set1} y ${set2}`,
+                detail: `Conjunto ${set1}: ${this._getSetRepresentation(set1)}\nConjunto ${set2}: ${this._getSetRepresentation(set2)}`
+            });
+        }
+
         // Casos especiales con conjuntos infinitos
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
-            return this._handleInfiniteOperation('intersection', set1, set2);
+            const result = this._handleInfiniteOperation('intersection', set1, set2);
+
+            if (this.stepByStepMode) {
+                steps.push({
+                    description: `Operación con conjuntos infinitos`,
+                    detail: `La intersección de conjuntos infinitos requiere analizar cada caso particular`
+                });
+                steps.push({
+                    description: `Resultado final`,
+                    detail: `${set1} ∩ ${set2} = ${typeof result === 'object' ? result.representation : result}`
+                });
+                return {result, steps};
+            }
+
+            this.operationCache.set(this._getCacheKey('intersection', set1, set2), result);
+            return result;
         }
 
         // Caso de conjuntos finitos - implementación optimizada
         const elements1 = this.sets.get(set1);
         const elements2 = this.sets.get(set2);
 
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Examinar cada elemento del primer conjunto ${set1}`,
+                detail: `Buscar cuáles elementos de ${set1} también están en ${set2}`
+            });
+        }
+
         // Optimización: usar un Set para búsqueda O(1) en lugar de includes O(n)
         const set2Elements = new Set(elements2);
-        return elements1.filter(element => set2Elements.has(element));
+        const result = elements1.filter(element => set2Elements.has(element));
+
+        if (this.stepByStepMode) {
+            const commonElements = result.length > 0 ? result.join(', ') : '∅';
+            steps.push({
+                description: `Elementos comunes encontrados`,
+                detail: `Elementos que aparecen en ambos conjuntos: {${commonElements}}`
+            });
+
+            steps.push({
+                description: `Resultado final`,
+                detail: `${set1} ∩ ${set2} = {${commonElements}}`
+            });
+
+            return {
+                result,
+                steps,
+                type: 'finite',
+                elements: result,
+                representation: `{${result.join(', ')}}`
+            };
+        }
+
+        this.operationCache.set(this._getCacheKey('intersection', set1, set2), result);
+        return result;
     }
 
     /**
@@ -180,18 +322,90 @@ class SetTheory {
         // Validación de existencia de conjuntos
         this._validateSetsExist(set1, set2);
 
+        // Verificar caché solo si no estamos en modo paso a paso
+        if (!this.stepByStepMode) {
+            const cacheKey = this._getCacheKey('difference', set1, set2);
+            if (this.operationCache.has(cacheKey)) {
+                return this.operationCache.get(cacheKey);
+            }
+        }
+
+        // Preparar pasos para el modo paso a paso
+        const steps = [];
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Identificar los elementos de los conjuntos ${set1} y ${set2}`,
+                detail: `Conjunto ${set1}: ${this._getSetRepresentation(set1)}\nConjunto ${set2}: ${this._getSetRepresentation(set2)}`
+            });
+        }
+
         // Casos especiales con conjuntos infinitos
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
-            return this._handleInfiniteOperation('difference', set1, set2);
+            const result = this._handleInfiniteOperation('difference', set1, set2);
+
+            if (this.stepByStepMode) {
+                steps.push({
+                    description: `Operación con conjuntos infinitos`,
+                    detail: `La diferencia entre conjuntos infinitos requiere un tratamiento especial`
+                });
+                steps.push({
+                    description: `Resultado final`,
+                    detail: `${set1} - ${set2} = ${typeof result === 'object' ? result.representation : result}`
+                });
+                return {result, steps};
+            }
+
+            this.operationCache.set(this._getCacheKey('difference', set1, set2), result);
+            return result;
         }
 
         // Caso de conjuntos finitos - implementación optimizada
         const elements1 = this.sets.get(set1);
         const elements2 = this.sets.get(set2);
 
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Examinar cada elemento del primer conjunto ${set1}`,
+                detail: `Debemos identificar qué elementos de ${set1} NO están en ${set2}`
+            });
+        }
+
         // Optimización: usar un Set para búsqueda O(1)
         const set2Elements = new Set(elements2);
-        return elements1.filter(element => !set2Elements.has(element));
+        const result = elements1.filter(element => !set2Elements.has(element));
+
+        if (this.stepByStepMode) {
+            const elementsInBoth = elements1.filter(element => set2Elements.has(element));
+            const commonStr = elementsInBoth.length > 0 ? elementsInBoth.join(', ') : '∅';
+
+            steps.push({
+                description: `Identificar elementos comunes`,
+                detail: `Elementos que aparecen en ambos conjuntos: {${commonStr}}`
+            });
+
+            const resultStr = result.length > 0 ? result.join(', ') : '∅';
+
+            steps.push({
+                description: `Eliminar los elementos comunes del primer conjunto`,
+                detail: `Elementos que están en ${set1} pero no en ${set2}: {${resultStr}}`
+            });
+
+            steps.push({
+                description: `Resultado final`,
+                detail: `${set1} - ${set2} = {${resultStr}}`
+            });
+
+            return {
+                result,
+                steps,
+                type: 'finite',
+                elements: result,
+                representation: `{${result.join(', ')}}`
+            };
+        }
+
+        this.operationCache.set(this._getCacheKey('difference', set1, set2), result);
+        return result;
     }
 
     /**

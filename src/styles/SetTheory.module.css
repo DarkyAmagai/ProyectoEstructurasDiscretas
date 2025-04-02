@@ -193,6 +193,80 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
+.stepsContainer {
+    margin-top: 1.5rem;
+    background-color: var(--background-secondary);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    border-left: 4px solid var(--accent-color);
+}
+
+.stepItem {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: var(--background);
+    border-radius: 0.35rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.stepItem:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.stepTitle {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--accent-color);
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+}
+
+.stepNumber {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: var(--accent-color);
+    color: white;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.stepDetail {
+    font-family: 'Fira Code', monospace;
+    white-space: pre-wrap;
+    padding: 0.5rem;
+    background-color: var(--accent-bg);
+    border-radius: 0.25rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.stepsToggle {
+    background-color: var(--accent-bg);
+    color: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    padding: 0.5rem 1rem;
+    border-radius: 0.35rem;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    transition: all 0.2s ease;
+}
+
+.stepsToggle:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
 .resultTitle {
     font-size: 1.125rem;
     margin-top: 0;
@@ -599,5 +673,29 @@
         padding: 0.6rem 1rem;
         margin: 0.5rem;
         font-size: 0.9rem;
+    }
+
+    .stepItem {
+        padding: 0.5rem;
+    }
+
+    .stepTitle {
+        font-size: 0.9rem;
+    }
+
+    .stepDetail {
+        font-size: 0.8rem;
+        padding: 0.35rem;
+    }
+
+    .stepNumber {
+        width: 20px;
+        height: 20px;
+        font-size: 0.75rem;
+    }
+
+    .stepsToggle {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
     }
 }

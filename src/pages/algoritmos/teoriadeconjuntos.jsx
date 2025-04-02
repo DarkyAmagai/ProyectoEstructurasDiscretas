@@ -4,6 +4,7 @@ import styles from '@/styles/SetTheory.module.css';
 import GlobalStyles from '@/styles/globals.module.css';
 import {SetTheory} from '@/logic/SetTheory';
 import SetCard from '@/components/SetCard';
+import {FaChevronDown, FaChevronUp, FaLightbulb} from 'react-icons/fa';
 
 export default function SetTheoryPage() {
     // Estado para almacenar la instancia de SetTheory
@@ -19,14 +20,20 @@ export default function SetTheoryPage() {
     const [set1, setSet1] = useState('');
     const [set2, setSet2] = useState('');
     const [result, setResult] = useState(null);
+    // Estados para paso a paso
+    const [stepByStepMode, setStepByStepMode] = useState(true);
+    const [steps, setSteps] = useState([]);
+    const [showSteps, setShowSteps] = useState(false);
 
     // Inicializar la instancia de SetTheory
     useEffect(() => {
         const theory = new SetTheory();
+        // Activamos el modo paso a paso
+        theory.setStepByStepMode(stepByStepMode);
         // Inicializamos una instancia sin ningún conjunto predefinido
         setSetTheory(theory);
         setSets(theory.getAllSets());
-    }, []);
+    }, [stepByStepMode]);
 
     // Manejar la creación de un nuevo conjunto
     const handleAddSet = (e) => {
@@ -121,35 +128,41 @@ export default function SetTheoryPage() {
         }
 
         try {
-            let operationResult;
+            let operationResult, stepsData = [];
 
-            if (memoizedOperations && operation in memoizedOperations) {
-                // Usar el resultado pre-calculado
-                operationResult = memoizedOperations[operation];
+            // Calcular el resultado bajo demanda
+            switch (operation) {
+                case 'union':
+                    operationResult = setTheory.union(set1, set2);
+                    break;
+                case 'intersection':
+                    operationResult = setTheory.intersection(set1, set2);
+                    break;
+                case 'difference':
+                    operationResult = setTheory.difference(set1, set2);
+                    break;
+                case 'symmetricDifference':
+                    operationResult = setTheory.symmetricDifference(set1, set2);
+                    break;
+                case 'isSubset':
+                    operationResult = setTheory.isSubset(set1, set2);
+                    break;
+                case 'complement':
+                    operationResult = setTheory.complement(set1, set2);
+                    break;
+                default:
+                    throw new Error('Operación no válida');
+            }
+
+            // Procesar resultado según si estamos en modo paso a paso
+            if (stepByStepMode && operationResult && operationResult.steps) {
+                stepsData = operationResult.steps;
+                operationResult = operationResult.result || operationResult;
+                setSteps(stepsData);
+                setShowSteps(true);
             } else {
-                // Calcular el resultado bajo demanda
-                switch (operation) {
-                    case 'union':
-                        operationResult = setTheory.union(set1, set2);
-                        break;
-                    case 'intersection':
-                        operationResult = setTheory.intersection(set1, set2);
-                        break;
-                    case 'difference':
-                        operationResult = setTheory.difference(set1, set2);
-                        break;
-                    case 'symmetricDifference':
-                        operationResult = setTheory.symmetricDifference(set1, set2);
-                        break;
-                    case 'isSubset':
-                        operationResult = setTheory.isSubset(set1, set2);
-                        break;
-                    case 'complement':
-                        operationResult = setTheory.complement(set1, set2);
-                        break;
-                    default:
-                        throw new Error('Operación no válida');
-                }
+                setSteps([]);
+                setShowSteps(false);
             }
 
             // Formatear el resultado
@@ -409,8 +422,50 @@ export default function SetTheoryPage() {
                                 name="Resultado"
                                 setData={result}
                             />
+
+                            {/* Mostrar pasos de la operación */}
+                            {steps.length > 0 && (
+                                <div className={styles.stepsContainer}>
+                                    <button
+                                        className={styles.stepsToggle}
+                                        onClick={() => setShowSteps(!showSteps)}
+                                    >
+                                        <FaLightbulb/>
+                                        {showSteps ? 'Ocultar pasos' : 'Mostrar pasos de solución'}
+                                        {showSteps ? <FaChevronUp/> : <FaChevronDown/>}
+                                    </button>
+
+                                    {showSteps && (
+                                        <div className={styles.stepsContent}>
+                                            {steps.map((step, index) => (
+                                                <div key={index} className={styles.stepItem}>
+                                                    <div className={styles.stepTitle}>
+                                                        <span className={styles.stepNumber}>{index + 1}</span>
+                                                        {step.description}
+                                                    </div>
+                                                    <div className={styles.stepDetail}>
+                                                        {step.detail}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
+
+                    {/* Opción para activar/desactivar el modo paso a paso */}
+                    <div style={{marginTop: '2rem', display: 'flex', justifyContent: 'center'}}>
+                        <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                            <input
+                                type="checkbox"
+                                checked={stepByStepMode}
+                                onChange={(e) => setStepByStepMode(e.target.checked)}
+                            />
+                            Mostrar los pasos de las operaciones
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
