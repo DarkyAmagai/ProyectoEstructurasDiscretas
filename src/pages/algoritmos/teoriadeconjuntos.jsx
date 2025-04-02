@@ -424,14 +424,14 @@ export default function SetTheoryPage() {
                             />
 
                             {/* Mostrar pasos de la operación */}
-                            {steps.length > 0 && (
+                            {steps.length > 0 && stepByStepMode && (
                                 <div className={styles.stepsContainer}>
                                     <button
                                         className={styles.stepsToggle}
                                         onClick={() => setShowSteps(!showSteps)}
                                     >
-                                        <FaLightbulb/>
-                                        {showSteps ? 'Ocultar pasos' : 'Mostrar pasos de solución'}
+                                        <FaLightbulb style={{fontSize: '1.2rem'}}/>
+                                        {showSteps ? 'Ocultar proceso paso a paso' : 'Ver proceso matemático paso a paso'}
                                         {showSteps ? <FaChevronUp/> : <FaChevronDown/>}
                                     </button>
 
@@ -441,7 +441,7 @@ export default function SetTheoryPage() {
                                                 <div key={index} className={styles.stepItem}>
                                                     <div className={styles.stepTitle}>
                                                         <span className={styles.stepNumber}>{index + 1}</span>
-                                                        {step.description}
+                                                        <strong>{step.description}</strong>
                                                     </div>
                                                     <div className={styles.stepDetail}>
                                                         {step.detail}
@@ -455,16 +455,15 @@ export default function SetTheoryPage() {
                         </div>
                     )}
 
-                    {/* Opción para activar/desactivar el modo paso a paso */}
-                    <div style={{marginTop: '2rem', display: 'flex', justifyContent: 'center'}}>
-                        <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                            <input
-                                type="checkbox"
-                                checked={stepByStepMode}
-                                onChange={(e) => setStepByStepMode(e.target.checked)}
-                            />
-                            Mostrar los pasos de las operaciones
-                        </label>
+                    {/* Toggle para el modo paso a paso integrado en el formulario */}
+                    <div className={styles.stepsModeToggle}>
+                        <button
+                            className={`${styles.actionButton} ${stepByStepMode ? styles.primary : ''}`}
+                            onClick={() => setStepByStepMode(!stepByStepMode)}
+                            type="button"
+                        >
+                            {stepByStepMode ? 'Modo educativo: Activado' : 'Modo educativo: Desactivado'}
+                        </button>
                     </div>
                 </div>
             </div>
