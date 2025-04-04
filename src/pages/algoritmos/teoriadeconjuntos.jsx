@@ -24,6 +24,9 @@ export default function SetTheoryPage() {
     const [stepByStepMode, setStepByStepMode] = useState(true);
     const [steps, setSteps] = useState([]);
     const [showSteps, setShowSteps] = useState(false);
+    // Estado para modo de entrada
+    const [inputMode, setInputMode] = useState('normal'); // 'normal' o 'expression'
+    const [expressionInput, setExpressionInput] = useState('');
 
     // Inicializar la instancia de SetTheory
     useEffect(() => {
@@ -84,6 +87,32 @@ export default function SetTheoryPage() {
         }
     };
 
+    // Insertar símbolo en la expresión (simplificado sin manejo especial de llaves)
+    const insertSymbol = (symbol) => {
+        // Para operadores, asegurarse de que tengan espacios alrededor para mejor legibilidad
+        if (['∪', '∩', '-', 'Δ', '⊆'].includes(symbol)) {
+            setExpressionInput(prev => prev + ` ${symbol} `);
+        }
+        // Para el complemento, no agregar espacios después porque se adhiere al conjunto
+        else if (symbol === 'ᶜ') {
+            setExpressionInput(prev => prev + symbol);
+        }
+        // Para paréntesis, añadir un espacio después de apertura o antes de cierre
+        else if (symbol === '(') {
+            setExpressionInput(prev => prev + '( ');
+        } else if (symbol === ')') {
+            setExpressionInput(prev => prev + ' )');
+        }
+        // Ignorar las llaves completamente para evitar confusión
+        else if (symbol === '{' || symbol === '}') {
+            // No hacer nada (omitir estos símbolos)
+        }
+        // Para cualquier otro símbolo (letras, etc.)
+        else {
+            setExpressionInput(prev => prev + symbol);
+        }
+    };
+
     // Memoizar el resultado de operaciones
     const memoizedOperations = React.useMemo(() => {
         if (!setTheory || !set1 || !set2) return null;
@@ -122,69 +151,144 @@ export default function SetTheoryPage() {
         e.preventDefault();
         setError('');
 
-        if (!set1 || !set2) {
-            setError('Seleccione dos conjuntos para la operación');
-            return;
-        }
-
-        try {
-            let operationResult, stepsData = [];
-
-            // Calcular el resultado bajo demanda
-            switch (operation) {
-                case 'union':
-                    operationResult = setTheory.union(set1, set2);
-                    break;
-                case 'intersection':
-                    operationResult = setTheory.intersection(set1, set2);
-                    break;
-                case 'difference':
-                    operationResult = setTheory.difference(set1, set2);
-                    break;
-                case 'symmetricDifference':
-                    operationResult = setTheory.symmetricDifference(set1, set2);
-                    break;
-                case 'isSubset':
-                    operationResult = setTheory.isSubset(set1, set2);
-                    break;
-                case 'complement':
-                    operationResult = setTheory.complement(set1, set2);
-                    break;
-                default:
-                    throw new Error('Operación no válida');
+        if (inputMode === 'normal') {
+            if (!set1 || !set2) {
+                setError('Seleccione dos conjuntos para la operación');
+                return;
             }
 
-            // Procesar resultado según si estamos en modo paso a paso
-            if (stepByStepMode && operationResult && operationResult.steps) {
-                stepsData = operationResult.steps;
-                operationResult = operationResult.result || operationResult;
-                setSteps(stepsData);
-                setShowSteps(true);
-            } else {
-                setSteps([]);
-                setShowSteps(false);
+            try {
+                let operationResult, stepsData = [];
+
+                // Calcular el resultado bajo demanda
+                switch (operation) {
+                    case 'union':
+                        operationResult = setTheory.union(set1, set2);
+                        break;
+                    case 'intersection':
+                        operationResult = setTheory.intersection(set1, set2);
+                        break;
+                    case 'difference':
+                        operationResult = setTheory.difference(set1, set2);
+                        break;
+                    case 'symmetricDifference':
+                        operationResult = setTheory.symmetricDifference(set1, set2);
+                        break;
+                    case 'isSubset':
+                        operationResult = setTheory.isSubset(set1, set2);
+                        break;
+                    case 'complement':
+                        operationResult = setTheory.complement(set1, set2);
+                        break;
+                    default:
+                        throw new Error('Operación no válida');
+                }
+
+                // Procesar resultado según si estamos en modo paso a paso
+                if (stepByStepMode && operationResult && operationResult.steps) {
+                    stepsData = operationResult.steps;
+                    operationResult = operationResult.result || operationResult;
+                    setSteps(stepsData);
+                    setShowSteps(true);
+                } else {
+                    setSteps([]);
+                    setShowSteps(false);
+                }
+
+                // Formatear el resultado
+                if (Array.isArray(operationResult)) {
+                    setResult({
+                        type: 'finite',
+                        elements: operationResult,
+                        representation: `{${operationResult.join(', ')}}`
+                    });
+                } else if (typeof operationResult === 'boolean') {
+                    setResult({
+                        type: 'relation',
+                        representation: `${set1} ${operationResult ? '⊆' : '⊈'} ${set2}`,
+                        evaluation: operationResult ? 'true' : 'false'
+                    });
+                } else {
+                    setResult(operationResult);
+                }
+            } catch (err) {
+                setError(err.message);
+            }
+        } else {
+            // Modo de expresión
+            if (!expressionInput.trim()) {
+                setError('La expresión no puede estar vacía');
+                return;
             }
 
-            // Formatear el resultado
-            if (Array.isArray(operationResult)) {
-                setResult({
-                    type: 'finite',
-                    elements: operationResult,
-                    representation: `{${operationResult.join(', ')}}`
-                });
-            } else if (typeof operationResult === 'boolean') {
-                setResult({
-                    type: 'relation',
-                    representation: `${set1} ${operationResult ? '⊆' : '⊈'} ${set2}`,
-                    evaluation: operationResult ? 'true' : 'false'
-                });
-            } else {
-                setResult(operationResult);
+            try {
+                // Usar el nuevo evaluador de expresiones de SetTheory
+                const expression = expressionInput.trim();
+                const evaluationResult = setTheory.evaluateExpression(expression);
+
+                // Procesar el resultado para mostrarlo correctamente
+                if (evaluationResult) {
+                    // Manejar el caso específico del modo paso a paso donde tenemos objeto con result y steps
+                    if (evaluationResult.result && evaluationResult.steps) {
+                        // Extraer el resultado real y los pasos
+                        const actualResult = evaluationResult.result;
+
+                        // Determinar el tipo de resultado y formatearlo adecuadamente
+                        if (actualResult.type === 'relation') {
+                            // Es una relación (como A ⊆ B)
+                            setResult(actualResult);
+                        } else if (actualResult.type === 'infinite') {
+                            // Es un conjunto infinito
+                            setResult(actualResult);
+                        } else if (actualResult.type === 'finite') {
+                            // Es un conjunto finito ya formateado
+                            setResult(actualResult);
+                        } else if (Array.isArray(actualResult)) {
+                            // Es un array de elementos (resultado de operación)
+                            setResult({
+                                type: 'finite',
+                                elements: actualResult,
+                                representation: `{${actualResult.join(', ')}}`
+                            });
+                        } else {
+                            // Cualquier otro formato de resultado
+                            setResult(actualResult);
+                        }
+
+                        // Establecer los pasos para el modo paso a paso
+                        setSteps(evaluationResult.steps);
+                        setShowSteps(true);
+                    } else {
+                        // Formato antiguo (sin modo paso a paso)
+                        if (evaluationResult.type === 'relation') {
+                            // Es una relación (como A ⊆ B)
+                            setResult(evaluationResult);
+                        } else if (evaluationResult.type === 'infinite') {
+                            // Es un conjunto infinito
+                            setResult(evaluationResult);
+                        } else if (Array.isArray(evaluationResult)) {
+                            // Es un array de elementos (resultado de operación)
+                            setResult({
+                                type: 'finite',
+                                elements: evaluationResult,
+                                representation: `{${evaluationResult.join(', ')}}`
+                            });
+                        } else {
+                            // Es un objeto con el resultado de la operación
+                            setResult(evaluationResult);
+                        }
+
+                        setSteps([]);
+                        setShowSteps(false);
+                    }
+                }
+            } catch (err) {
+                setError(err.message || 'Error al evaluar la expresión');
             }
-        } catch (err) {
-            setError(err.message);
         }
     };
+
+    // Se elimina esta función porque ahora usamos la implementación real en SetTheory.js
 
     // Renderizar etiquetas para la operación seleccionada
     const getOperationSymbol = () => {
@@ -346,75 +450,169 @@ export default function SetTheoryPage() {
                 <div className={styles.operationsContainer}>
                     <h2 className={styles.sectionTitle}>Operaciones con Conjuntos</h2>
 
-                    <form onSubmit={handleOperation} className={styles.operationForm}>
-                        <div className={styles.inputGroup}>
-                            <label htmlFor="set1">Primer conjunto (A)</label>
-                            <select
-                                id="set1"
-                                className={styles.select}
-                                value={set1}
-                                onChange={(e) => setSet1(e.target.value)}
-                            >
-                                <option value="">Seleccionar...</option>
-                                {Object.keys(sets).map(name => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className={styles.inputGroup} style={{maxWidth: 'fit-content', alignSelf: 'flex-end'}}>
-                            <label>Operación</label>
-                            <select
-                                className={styles.select}
-                                value={operation}
-                                onChange={(e) => setOperation(e.target.value)}
-                            >
-                                <option value="union">Unión (∪)</option>
-                                <option value="intersection">Intersección (∩)</option>
-                                <option value="difference">Diferencia (-)</option>
-                                <option value="symmetricDifference">Diferencia simétrica (Δ)</option>
-                                <option value="isSubset">Es subconjunto (⊆)</option>
-                                <option value="complement">Complemento (ᶜ)</option>
-                            </select>
-                        </div>
-
-                        <div className={styles.inputGroup}>
-                            <label htmlFor="set2">Segundo conjunto (B)</label>
-                            <select
-                                id="set2"
-                                className={styles.select}
-                                value={set2}
-                                onChange={(e) => setSet2(e.target.value)}
-                            >
-                                <option value="">Seleccionar...</option>
-                                {Object.keys(sets).map(name => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
-                            </select>
-                        </div>
-
+                    {/* Toggle para cambiar entre modos de entrada */}
+                    <div className={styles.inputModeToggle}>
                         <button
-                            type="submit"
-                            className={`${styles.actionButton} ${styles.primary}`}
-                            style={{alignSelf: 'flex-end'}}
+                            className={`${styles.modeButton} ${inputMode === 'normal' ? styles.activeMode : ''}`}
+                            onClick={() => setInputMode('normal')}
+                            type="button"
                         >
-                            Calcular
+                            Modo Selección
                         </button>
-                    </form>
-
-                    {/* Descripción de la operación */}
-                    <div className={styles.operationDescription}>
-                        <p className={styles.descriptionText}>{getOperationDescription()}</p>
-                        <VennDiagram operation={operation}/>
+                        <button
+                            className={`${styles.modeButton} ${inputMode === 'expression' ? styles.activeMode : ''}`}
+                            onClick={() => setInputMode('expression')}
+                            type="button"
+                        >
+                            Modo Expresión
+                        </button>
                     </div>
+
+                    {inputMode === 'normal' ? (
+                        <form onSubmit={handleOperation} className={styles.operationForm}>
+                            <div className={styles.inputGroup}>
+                                <label htmlFor="set1">Primer conjunto (A)</label>
+                                <select
+                                    id="set1"
+                                    className={styles.select}
+                                    value={set1}
+                                    onChange={(e) => setSet1(e.target.value)}
+                                >
+                                    <option value="">Seleccionar...</option>
+                                    {Object.keys(sets).map(name => (
+                                        <option key={name} value={name}>{name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className={styles.inputGroup} style={{maxWidth: 'fit-content', alignSelf: 'flex-end'}}>
+                                <label>Operación</label>
+                                <select
+                                    className={styles.select}
+                                    value={operation}
+                                    onChange={(e) => setOperation(e.target.value)}
+                                >
+                                    <option value="union">Unión (∪)</option>
+                                    <option value="intersection">Intersección (∩)</option>
+                                    <option value="difference">Diferencia (-)</option>
+                                    <option value="symmetricDifference">Diferencia simétrica (Δ)</option>
+                                    <option value="isSubset">Es subconjunto (⊆)</option>
+                                    <option value="complement">Complemento (ᶜ)</option>
+                                </select>
+                            </div>
+
+                            <div className={styles.inputGroup}>
+                                <label htmlFor="set2">Segundo conjunto (B)</label>
+                                <select
+                                    id="set2"
+                                    className={styles.select}
+                                    value={set2}
+                                    onChange={(e) => setSet2(e.target.value)}
+                                >
+                                    <option value="">Seleccionar...</option>
+                                    {Object.keys(sets).map(name => (
+                                        <option key={name} value={name}>{name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className={`${styles.actionButton} ${styles.primary}`}
+                                style={{alignSelf: 'flex-end'}}
+                            >
+                                Calcular
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleOperation} className={styles.operationForm}>
+                            <div className={styles.expressionContainer}>
+                                <div className={styles.inputGroup} style={{width: '100%'}}>
+                                    <label htmlFor="expression">Expresión</label>
+                                    <div className={styles.expressionInputWrapper}>
+                                        <input
+                                            id="expression"
+                                            type="text"
+                                            className={styles.expressionInput}
+                                            value={expressionInput}
+                                            onChange={(e) => setExpressionInput(e.target.value)}
+                                            placeholder="Ej: A ∪ B"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={styles.symbolButtonsContainer}>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('∪')}>∪
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('∩')}>∩
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('-')}>-
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('Δ')}>Δ
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('⊆')}>⊆
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('ᶜ')}>ᶜ
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('∈')}>∈
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('∉')}>∉
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol('(')}>(
+                                    </button>
+                                    <button type="button" className={styles.symbolButton}
+                                            onClick={() => insertSymbol(')')}>)
+                                    </button>
+                                </div>
+
+                                <div className={styles.expressionHint}>
+                                    <p>Conjuntos disponibles: {Object.keys(sets).join(', ')}</p>
+                                    <p>Ejemplos de expresiones:</p>
+                                    <ul>
+                                        <li>A ∪ B (unión)</li>
+                                        <li>A ∩ B (intersección)</li>
+                                        <li>A - B (diferencia)</li>
+                                        <li>A ⊆ B (subconjunto)</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className={`${styles.actionButton} ${styles.primary}`}
+                                style={{alignSelf: 'center', marginTop: '1rem'}}
+                            >
+                                Evaluar expresión
+                            </button>
+                        </form>
+                    )}
+
+                    {/* Descripción de la operación (solo en modo normal) */}
+                    {inputMode === 'normal' && (
+                        <div className={styles.operationDescription}>
+                            <p className={styles.descriptionText}>{getOperationDescription()}</p>
+                            <VennDiagram operation={operation}/>
+                        </div>
+                    )}
 
                     {/* Mostrar resultado */}
                     {result && (
                         <div className={styles.resultCard}>
                             <h3 className={styles.resultTitle}>
-                                {operation === 'complement'
-                                    ? `Resultado: ${set1}${getOperationSymbol()} respecto a ${set2}`
-                                    : `Resultado: ${set1} ${getOperationSymbol()} ${set2}`
+                                {inputMode === 'expression'
+                                    ? 'Resultado de la expresión'
+                                    : operation === 'complement'
+                                        ? `Resultado: ${set1}${getOperationSymbol()} respecto a ${set2}`
+                                        : `Resultado: ${set1} ${getOperationSymbol()} ${set2}`
                                 }
                             </h3>
 

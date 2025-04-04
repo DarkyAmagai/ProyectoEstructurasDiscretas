@@ -573,6 +573,122 @@
     right: 40px;
 }
 
+/* Estilos para modo expresión */
+.inputModeToggle {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.modeButton {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--accent-color);
+    background-color: transparent;
+    color: var(--foreground);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.modeButton:hover {
+    background-color: rgba(128, 90, 213, 0.1);
+}
+
+.modeButton.activeMode {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.expressionContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 1rem;
+}
+
+.expressionInputWrapper {
+    display: flex;
+    position: relative;
+    width: 100%;
+}
+
+.expressionInput {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(128, 90, 213, 0.3);
+    border-radius: 0.35rem;
+    font-size: 1.1rem;
+    font-family: 'Fira Code', monospace;
+    background-color: var(--background-secondary);
+    color: var(--foreground);
+}
+
+.expressionInput:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(128, 90, 213, 0.2);
+}
+
+.symbolButtonsContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.symbolButton {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: var(--background);
+    border: 1px solid rgba(128, 90, 213, 0.3);
+    color: var(--accent-color);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.symbolButton:hover {
+    background-color: var(--accent-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.expressionHint {
+    background-color: rgba(128, 90, 213, 0.05);
+    border-radius: 0.35rem;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--foreground-secondary);
+    border-left: 3px solid var(--accent-color);
+    margin-top: 0.5rem;
+}
+
+.expressionHint p {
+    margin: 0.5rem 0;
+}
+
+.expressionHint ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.expressionHint li {
+    margin-bottom: 0.25rem;
+}
+
+.stepsModeToggle {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
 /* Media queries para dispositivos móviles */
 @media screen and (max-width: 768px) {
     .container {
@@ -697,5 +813,26 @@
     .stepsToggle {
         padding: 0.4rem 0.8rem;
         font-size: 0.85rem;
+    }
+
+    .inputModeToggle {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .symbolButtonsContainer {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+
+    .symbolButton {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
+    }
+
+    .expressionInput {
+        font-size: 1rem;
+        padding: 0.6rem;
     }
 }
