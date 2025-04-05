@@ -5,6 +5,51 @@ import styles from '@/styles/SetTheory.module.css';
  * Componente para mostrar un conjunto con sus elementos o definición
  */
 export default function SetCard({name, setData, onRemove, onDragStart}) {
+    // Renderiza un elemento anidado recursivamente
+    const renderNestedElement = (element) => {
+        if (!element) return null;
+
+        if (typeof element === 'object' && element.type) {
+            if (element.type === 'primitive') {
+                return String(element.value);
+            } else if (element.type === 'set') {
+                // Manejar conjuntos anidados recursivamente
+                const nestedContent = element.elements.map(renderNestedElement).join(', ');
+                return `{${nestedContent}}`;
+            } else if (element.type === 'setRef') {
+                return element.reference;
+            }
+        }
+
+        // Fallback para versiones antiguas
+        return String(element);
+    };
+
+    // Renderiza un elemento individual del conjunto
+    const renderElement = (element, key) => {
+        if (!element) return null;
+
+        if (element.type === 'primitive') {
+            return <span key={key} className={styles.chip}>{element.value}</span>;
+        } else if (element.type === 'setRef') {
+            return (
+                <span key={key} className={`${styles.chip} ${styles.setRefChip}`}>
+                    {element.reference}
+                </span>
+            );
+        } else if (element.type === 'set') {
+            // Clase especial para conjuntos anidados con mejor estilo
+            return (
+                <span key={key} className={`${styles.chip} ${styles.nestedSetChip}`}>
+                    {`{${element.elements.map(renderNestedElement).join(', ')}}`}
+                </span>
+            );
+        }
+
+        // Compatibilidad con versiones anteriores - elementos que son strings directamente
+        return <span key={key} className={styles.chip}>{element}</span>;
+    };
+
     // Determina cómo mostrar el conjunto basado en su tipo
     const renderSetContent = () => {
         if (!setData) return null;
@@ -12,12 +57,15 @@ export default function SetCard({name, setData, onRemove, onDragStart}) {
         if (setData.type === 'finite') {
             return (
                 <div className={styles.setContent}>
-                    {setData.elements.length === 0
-                        ? <span className={styles.emptySet}>∅</span> // Conjunto vacío con estilo mejorado
-                        : setData.elements.map((element, index) => (
-                            <span key={index} className={styles.chip}>{element}</span>
-                        ))
-                    }
+                    {setData.elements.length === 0 ? (
+                        <span className={styles.emptySet}>∅</span> // Conjunto vacío con estilo mejorado
+                    ) : (
+                        <div className={styles.elementsContainer}>
+                            {Array.isArray(setData.elements) && setData.elements.map((element, index) =>
+                                renderElement(element, index)
+                            )}
+                        </div>
+                    )}
                 </div>
             );
         } else if (setData.type === 'infinite') {

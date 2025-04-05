@@ -2,47 +2,22 @@ class SetTheory {
     constructor() {
         this.sets = new Map();
         this.infiniteSets = new Map();
-        // Caché para operaciones frecuentes
         this.operationCache = new Map();
-        // Modo paso a paso
         this.stepByStepMode = false;
     }
 
-    /**
-     * Activa o desactiva el modo paso a paso
-     * @param {boolean} mode - True para activar, false para desactivar
-     */
     setStepByStepMode(mode) {
         this.stepByStepMode = Boolean(mode);
     }
 
-    /**
-     * Limpia la caché de operaciones cuando se modifican los conjuntos
-     * @private
-     */
     _clearCache() {
         this.operationCache.clear();
     }
 
-    /**
-     * Genera una clave única para la caché de operaciones
-     * @private
-     * @param {string} operation - Nombre de la operación
-     * @param {string} set1 - Primer conjunto
-     * @param {string} set2 - Segundo conjunto (opcional)
-     * @returns {string} - Clave para la caché
-     */
     _getCacheKey(operation, set1, set2 = null) {
         return `${operation}:${set1}:${set2}`;
     }
 
-    /**
-     * Valida que los conjuntos existan
-     * @private
-     * @param {string} set1 - Primer conjunto
-     * @param {string} set2 - Segundo conjunto
-     * @throws {Error} Si alguno de los conjuntos no existe
-     */
     _validateSetsExist(set1, set2) {
         if (!(this.sets.has(set1) || this.infiniteSets.has(set1))) {
             throw new Error(`El conjunto '${set1}' no existe`);
@@ -53,45 +28,282 @@ class SetTheory {
         }
     }
 
-    /**
-     * Añade un conjunto finito al registro
-     * @param {string} name - Nombre del conjunto
-     * @param {Array} elements - Elementos del conjunto
-     */
-    addSet(name, elements) {
+    // Método auxiliar para formatear un único elemento con mejor soporte para conjuntos anidados
+    _formatSingleElement(element) {
+        if (!element) return '';
+
+        // Si el elemento es directamente un valor primitivo (string, número, etc.)
+        if (typeof element !== 'object') {
+            return String(element);
+        }
+
+        // Estructura de elementos mejorada
+        if (element.type === 'primitive') {
+            return String(element.value);
+        } else if (element.type === 'set') {
+            // Manejo recursivo para conjuntos anidados
+            const formattedElements = element.elements.map(elem =>
+                this._formatSingleElement(elem)
+            );
+            return `{${formattedElements.join(', ')}}`;
+        } else if (element.type === 'setRef') {
+            return element.reference;
+        }
+
+        // Si no coincide con ninguno de los anteriores, convertir a string
+        return JSON.stringify(element);
+    }
+
+    // Método para formatear un array de elementos a string
+    _formatElementsArray(elements) {
+        if (!elements || elements.length === 0) return '';
+        return elements.map(element => this._formatSingleElement(element)).join(', ');
+    }
+
+    // Obtiene una representación textual de los elementos de un conjunto
+    _getSetElementsString(setName) {
+        if (this.sets.has(setName)) {
+            const elements = this.sets.get(setName);
+            if (elements.length === 0) return '∅';
+            return this._formatElementsArray(elements);
+        } else if (this.infiniteSets.has(setName)) {
+            return this.infiniteSets.get(setName).definition;
+        }
+        return '?';
+    }
+
+    // Método para obtener representación completa con llaves
+    _getSetRepresentation(setName) {
+        const elementsStr = this._getSetElementsString(setName);
+        if (elementsStr === '∅') return '∅';
+        if (elementsStr === '?') return '?';
+        return `{${elementsStr}}`;
+    }
+
+    // Método auxiliar para crear un elemento primitivo estructurado
+    _createPrimitiveElement(value) {
+        return {type: 'primitive', value};
+    }
+
+    // Método auxiliar para crear un elemento de conjunto anidado
+    _createSetElement(elements) {
+        return {type: 'set', elements};
+    }
+
+    // Método auxiliar para crear una referencia a otro conjunto
+    _createSetReference(name) {
+        return {type: 'setRef', reference: name};
+    }
+
+    // Método mejorado para procesar texto de entrada y detectar conjuntos anidados
+    _parseSetInput(input) {
+        // Si ya es un objeto con el formato correcto, devolverlo sin cambios
+        if (input && typeof input === 'object' && input.type) {
+            return input;
+        }
+
+        // Convertir a string para procesamiento uniforme
+        const strInput = String(input).trim();
+
+        // Verificar si es un conjunto anidado con formato {a,b,c,...}
+        if (strInput.startsWith('{') && strInput.endsWith('}')) {
+            return this._parseNestedSet(strInput);
+        }
+
+        // Verificar si es una referencia a un conjunto existente
+        if (this.sets.has(strInput) || this.infiniteSets.has(strInput)) {
+            return this._createSetReference(strInput);
+        }
+
+        // Si es un número, convertirlo apropiadamente
+        if (!isNaN(Number(strInput)) && String(Number(strInput)) === strInput) {
+            return this._createPrimitiveElement(Number(strInput));
+        }
+
+        // Por defecto, tratar como valor primitivo (string)
+        return this._createPrimitiveElement(strInput);
+    }
+
+    // Método para parsear un conjunto anidado completo
+    _parseNestedSet(setStr) {
+        // Remover las llaves externas y dividir por comas, respetando conjuntos anidados
+        const content = setStr.substring(1, setStr.length - 1);
+        const parsedElements = this._parseNestedContent(content);
+
+        // Convertir los elementos analizados a la estructura correcta
+        const structuredElements = parsedElements.map(elem => this._parseSetInput(elem));
+
+        // Devolver un elemento de tipo conjunto
+        return this._createSetElement(structuredElements);
+    }
+
+    // Método mejorado para analizar el contenido de un conjunto anidado
+    _parseNestedContent(content) {
+        if (!content || content.trim() === '') {
+            return [];
+        }
+
+        let tokens = [];
+        let currentToken = '';
+        let nestedLevel = 0;
+
+        // Recorrer caracter por caracter para detectar correctamente conjuntos anidados
+        for (let i = 0; i < content.length; i++) {
+            const char = content[i];
+
+            if (char === ',' && nestedLevel === 0) {
+                // Si encontramos una coma fuera de un conjunto anidado, terminamos el token actual
+                if (currentToken.trim()) {
+                    tokens.push(currentToken.trim());
+                }
+                currentToken = '';
+            } else if (char === '{') {
+                // Incrementamos el nivel de anidamiento
+                nestedLevel++;
+                currentToken += char;
+            } else if (char === '}') {
+                // Decrementamos el nivel de anidamiento
+                nestedLevel--;
+                currentToken += char;
+            } else {
+                // Cualquier otro caracter se agrega al token actual
+                currentToken += char;
+            }
+        }
+
+        // No olvidar el último token
+        if (currentToken.trim()) {
+            tokens.push(currentToken.trim());
+        }
+
+        return tokens;
+    }
+
+    // Método para comparar si dos elementos son iguales (mejorado para conjuntos anidados)
+    _elementsEqual(elem1, elem2) {
+        // Si alguno de los elementos es null o undefined
+        if (!elem1 || !elem2) return elem1 === elem2;
+
+        // Si los tipos son diferentes, no son iguales
+        if (elem1.type !== elem2.type) return false;
+
+        if (elem1.type === 'primitive') {
+            // Comparación estricta para valores primitivos
+            return elem1.value === elem2.value;
+        } else if (elem1.type === 'setRef') {
+            // Comparación de referencias a conjuntos
+            return elem1.reference === elem2.reference;
+        } else if (elem1.type === 'set') {
+            // Para conjuntos anidados, comparación profunda
+            if (elem1.elements.length !== elem2.elements.length) return false;
+
+            // Verificar que todos los elementos del primer conjunto estén en el segundo
+            // y viceversa (comparación de conjuntos)
+            return this._compareNestedSetElements(elem1.elements, elem2.elements);
+        }
+
+        return false;
+    }
+
+    // Método mejorado para comparar elementos de conjuntos anidados
+    _compareNestedSetElements(elements1, elements2) {
+        if (elements1.length !== elements2.length) return false;
+
+        // Para cada elemento en elements1, debe haber un elemento igual en elements2
+        const matched = new Array(elements2.length).fill(false);
+
+        for (const elem1 of elements1) {
+            let foundMatch = false;
+
+            for (let i = 0; i < elements2.length; i++) {
+                if (matched[i]) continue; // Este elemento ya fue emparejado
+
+                const elem2 = elements2[i];
+
+                if (this._elementsEqual(elem1, elem2)) {
+                    matched[i] = true;
+                    foundMatch = true;
+                    break;
+                }
+            }
+
+            // Si no encontramos un elemento igual en elements2, los conjuntos son diferentes
+            if (!foundMatch) return false;
+        }
+
+        // Todos los elementos de elements1 tienen una correspondencia en elements2
+        return true;
+    }
+
+    // Método para asegurar elementos únicos en un conjunto
+    _getUniqueElements(elements) {
+        const uniqueElements = [];
+        const seen = new Set();
+
+        for (const element of elements) {
+            // Generamos una clave única para cada elemento
+            let key;
+
+            if (element.type === 'primitive') {
+                key = `p:${String(element.value)}`;
+            } else if (element.type === 'set') {
+                // Para conjuntos anidados, usamos una representación ordenada y serializada
+                const sortedElements = [...element.elements].sort((a, b) => {
+                    return this._formatSingleElement(a).localeCompare(this._formatSingleElement(b));
+                });
+                key = `s:${this._formatElementsArray(sortedElements)}`;
+            } else if (element.type === 'setRef') {
+                key = `r:${element.reference}`;
+            } else {
+                // Fallback para cualquier otro tipo
+                key = `o:${JSON.stringify(element)}`;
+            }
+
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueElements.push(element);
+            }
+        }
+
+        return uniqueElements;
+    }
+
+    // Método mejorado para añadir un conjunto
+    addSet(name, inputElements) {
         if (!name || name.trim() === '') {
             throw new Error('El nombre del conjunto no puede estar vacío');
         }
 
-        // Asegurarse de que los elementos sean únicos
-        const uniqueElements = [...new Set(elements)];
-        this.sets.set(name, uniqueElements);
+        // Si inputElements es una string, analizarla como un conjunto completo
+        if (typeof inputElements === 'string') {
+            const processedSet = this._parseSetInput(inputElements);
+            // Si parseSetInput devuelve un objeto con type='set', usamos sus elementos
+            if (processedSet.type === 'set') {
+                this.sets.set(name, this._getUniqueElements(processedSet.elements));
+                this._clearCache();
+                return;
+            }
+        }
 
-        // Limpiar caché porque se modificaron los conjuntos
+        // Procesar cada elemento individualmente
+        const processedElements = Array.isArray(inputElements)
+            ? inputElements.map(element => this._parseSetInput(element))
+            : [this._parseSetInput(inputElements)];
+
+        // Asegurar elementos únicos
+        this.sets.set(name, this._getUniqueElements(processedElements));
         this._clearCache();
     }
 
-    /**
-     * Añade un conjunto infinito definido por una expresión
-     * @param {string} name - Nombre del conjunto
-     * @param {string} definition - Definición del conjunto (ej. "N", "Z", "Q", "R")
-     * @param {Function} membershipTest - Función que determina si un elemento pertenece al conjunto
-     */
     addInfiniteSet(name, definition, membershipTest) {
         if (!name || name.trim() === '') {
             throw new Error('El nombre del conjunto no puede estar vacío');
         }
 
         this.infiniteSets.set(name, {definition, membershipTest});
-
-        // Limpiar caché porque se modificaron los conjuntos
         this._clearCache();
     }
 
-    /**
-     * Elimina un conjunto
-     * @param {string} name - Nombre del conjunto a eliminar
-     */
     removeSet(name) {
         if (this.sets.has(name)) {
             this.sets.delete(name);
@@ -104,33 +316,26 @@ class SetTheory {
         }
     }
 
-    /**
-     * Verifica si un elemento pertenece a un conjunto
-     * @param {any} element - Elemento a verificar
-     * @param {string} setName - Nombre del conjunto
-     * @returns {boolean}
-     */
+    // Método mejorado para determinar si un elemento pertenece a un conjunto
     isMember(element, setName) {
         if (this.sets.has(setName)) {
-            return this.sets.get(setName).includes(element);
+            const setElements = this.sets.get(setName);
+            const elementToCheck = this._parseSetInput(element);
+
+            // Buscar el elemento en el conjunto
+            return setElements.some(setElement => this._elementsEqual(setElement, elementToCheck));
         } else if (this.infiniteSets.has(setName)) {
             const set = this.infiniteSets.get(setName);
             return set.membershipTest(element);
         }
-        throw new Error(`El conjunto '${setName}' no existe`);
-    } //ok
 
-    /**
-     * Calcula la unión de dos conjuntos
-     * @param {string} set1 - Nombre del primer conjunto
-     * @param {string} set2 - Nombre del segundo conjunto
-     * @returns {Array|Object} - Resultado de la unión, o un objeto con el resultado y los pasos si stepByStepMode está activo
-     */
+        throw new Error(`El conjunto '${setName}' no existe`);
+    }
+
+    // Operación de unión (optimizada para conjuntos anidados)
     union(set1, set2) {
-        // Validación de existencia de conjuntos
         this._validateSetsExist(set1, set2);
 
-        // Verificar caché solo si no estamos en modo paso a paso
         if (!this.stepByStepMode) {
             const cacheKey = this._getCacheKey('union', set1, set2);
             if (this.operationCache.has(cacheKey)) {
@@ -138,7 +343,6 @@ class SetTheory {
             }
         }
 
-        // Preparar pasos para el modo paso a paso
         const steps = [];
         if (this.stepByStepMode) {
             steps.push({
@@ -147,7 +351,6 @@ class SetTheory {
             });
         }
 
-        // Casos especiales con conjuntos infinitos
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('union', set1, set2);
 
@@ -167,41 +370,46 @@ class SetTheory {
             return result;
         }
 
-        // Caso de conjuntos finitos - implementación optimizada
         const elements1 = this.sets.get(set1);
         const elements2 = this.sets.get(set2);
 
         if (this.stepByStepMode) {
             steps.push({
                 description: `Tomar todos los elementos del primer conjunto ${set1}`,
-                detail: `Elementos iniciales: {${elements1.join(', ')}}`
+                detail: `Elementos iniciales: ${this._getSetRepresentation(set1)}`
             });
 
-            const uniqueInSecond = elements2.filter(element => !elements1.includes(element));
+            // Identificar elementos únicos para mostrar en los pasos
+            const uniqueInSecond = elements2.filter(element2 =>
+                !elements1.some(element1 => this._elementsEqual(element1, element2))
+            );
 
             steps.push({
                 description: `Agregar elementos del segundo conjunto ${set2} que no estén en el primero`,
-                detail: `Elementos a agregar: {${uniqueInSecond.length > 0 ? uniqueInSecond.join(', ') : '∅'}}`
+                detail: `Elementos a agregar: ${uniqueInSecond.length > 0 ? '{' + this._formatElementsArray(uniqueInSecond) + '}' : '∅'}`
             });
         }
 
-        // Usar un Set para eliminar duplicados de forma eficiente
-        const unionSet = new Set(elements1);
-        elements2.forEach(element => unionSet.add(element));
-
-        const result = Array.from(unionSet);
+        // Combinar elementos sin duplicados
+        const result = [...elements1];
+        for (const element2 of elements2) {
+            if (!result.some(element1 => this._elementsEqual(element1, element2))) {
+                result.push(element2);
+            }
+        }
 
         if (this.stepByStepMode) {
             steps.push({
                 description: `Resultado final`,
-                detail: `${set1} ∪ ${set2} = {${result.join(', ')}}`
+                detail: `${set1} ∪ ${set2} = {${this._formatElementsArray(result)}}`
             });
+
             return {
                 result,
                 steps,
                 type: 'finite',
                 elements: result,
-                representation: `{${result.join(', ')}}`
+                representation: `{${this._formatElementsArray(result)}}`
             };
         }
 
@@ -209,33 +417,10 @@ class SetTheory {
         return result;
     }
 
-    /**
-     * Obtiene una representación textual de un conjunto
-     * @private
-     * @param {string} setName - Nombre del conjunto
-     * @returns {string} - Representación del conjunto
-     */
-    _getSetRepresentation(setName) {
-        if (this.sets.has(setName)) {
-            const elements = this.sets.get(setName);
-            return elements.length > 0 ? `{${elements.join(', ')}}` : '∅';
-        } else if (this.infiniteSets.has(setName)) {
-            return this.infiniteSets.get(setName).definition;
-        }
-        return '?';
-    }
-
-    /**
-     * Calcula la intersección de dos conjuntos
-     * @param {string} set1 - Nombre del primer conjunto
-     * @param {string} set2 - Nombre del segundo conjunto
-     * @returns {Array|Object} - Resultado de la intersección
-     */
+    // Operación de intersección (optimizada para conjuntos anidados)
     intersection(set1, set2) {
-        // Validación de existencia de conjuntos
         this._validateSetsExist(set1, set2);
 
-        // Verificar caché solo si no estamos en modo paso a paso
         if (!this.stepByStepMode) {
             const cacheKey = this._getCacheKey('intersection', set1, set2);
             if (this.operationCache.has(cacheKey)) {
@@ -243,7 +428,6 @@ class SetTheory {
             }
         }
 
-        // Preparar pasos para el modo paso a paso
         const steps = [];
         if (this.stepByStepMode) {
             steps.push({
@@ -252,7 +436,6 @@ class SetTheory {
             });
         }
 
-        // Casos especiales con conjuntos infinitos
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('intersection', set1, set2);
 
@@ -272,7 +455,6 @@ class SetTheory {
             return result;
         }
 
-        // Caso de conjuntos finitos - implementación optimizada
         const elements1 = this.sets.get(set1);
         const elements2 = this.sets.get(set2);
 
@@ -283,12 +465,13 @@ class SetTheory {
             });
         }
 
-        // Optimización: usar un Set para búsqueda O(1) en lugar de includes O(n)
-        const set2Elements = new Set(elements2);
-        const result = elements1.filter(element => set2Elements.has(element));
+        // Encontrar elementos comunes
+        const result = elements1.filter(element1 =>
+            elements2.some(element2 => this._elementsEqual(element1, element2))
+        );
 
         if (this.stepByStepMode) {
-            const commonElements = result.length > 0 ? result.join(', ') : '∅';
+            const commonElements = result.length > 0 ? this._formatElementsArray(result) : '∅';
             steps.push({
                 description: `Elementos comunes encontrados`,
                 detail: `Elementos que aparecen en ambos conjuntos: {${commonElements}}`
@@ -304,7 +487,7 @@ class SetTheory {
                 steps,
                 type: 'finite',
                 elements: result,
-                representation: `{${result.join(', ')}}`
+                representation: `{${this._formatElementsArray(result)}}`
             };
         }
 
@@ -312,17 +495,10 @@ class SetTheory {
         return result;
     }
 
-    /**
-     * Calcula la diferencia entre dos conjuntos (set1 - set2)
-     * @param {string} set1 - Nombre del primer conjunto
-     * @param {string} set2 - Nombre del segundo conjunto
-     * @returns {Array|Object} - Resultado de la diferencia
-     */
+    // Operación de diferencia (optimizada para conjuntos anidados)
     difference(set1, set2) {
-        // Validación de existencia de conjuntos
         this._validateSetsExist(set1, set2);
 
-        // Verificar caché solo si no estamos en modo paso a paso
         if (!this.stepByStepMode) {
             const cacheKey = this._getCacheKey('difference', set1, set2);
             if (this.operationCache.has(cacheKey)) {
@@ -330,7 +506,6 @@ class SetTheory {
             }
         }
 
-        // Preparar pasos para el modo paso a paso
         const steps = [];
         if (this.stepByStepMode) {
             steps.push({
@@ -339,7 +514,6 @@ class SetTheory {
             });
         }
 
-        // Casos especiales con conjuntos infinitos
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('difference', set1, set2);
 
@@ -359,7 +533,6 @@ class SetTheory {
             return result;
         }
 
-        // Caso de conjuntos finitos - implementación optimizada
         const elements1 = this.sets.get(set1);
         const elements2 = this.sets.get(set2);
 
@@ -370,20 +543,25 @@ class SetTheory {
             });
         }
 
-        // Optimización: usar un Set para búsqueda O(1)
-        const set2Elements = new Set(elements2);
-        const result = elements1.filter(element => !set2Elements.has(element));
+        // Elementos en set1 que no están en set2
+        const result = elements1.filter(element1 =>
+            !elements2.some(element2 => this._elementsEqual(element1, element2))
+        );
 
         if (this.stepByStepMode) {
-            const elementsInBoth = elements1.filter(element => set2Elements.has(element));
-            const commonStr = elementsInBoth.length > 0 ? elementsInBoth.join(', ') : '∅';
+            // Elementos comunes (para mostrar en los pasos)
+            const elementsInBoth = elements1.filter(element1 =>
+                elements2.some(element2 => this._elementsEqual(element1, element2))
+            );
+
+            const commonStr = elementsInBoth.length > 0 ? this._formatElementsArray(elementsInBoth) : '∅';
 
             steps.push({
                 description: `Identificar elementos comunes`,
                 detail: `Elementos que aparecen en ambos conjuntos: {${commonStr}}`
             });
 
-            const resultStr = result.length > 0 ? result.join(', ') : '∅';
+            const resultStr = result.length > 0 ? this._formatElementsArray(result) : '∅';
 
             steps.push({
                 description: `Eliminar los elementos comunes del primer conjunto`,
@@ -400,7 +578,7 @@ class SetTheory {
                 steps,
                 type: 'finite',
                 elements: result,
-                representation: `{${result.join(', ')}}`
+                representation: `{${this._formatElementsArray(result)}}`
             };
         }
 
@@ -408,123 +586,286 @@ class SetTheory {
         return result;
     }
 
-    /**
-     * Calcula la diferencia simétrica entre dos conjuntos
-     * @param {string} set1 - Nombre del primer conjunto
-     * @param {string} set2 - Nombre del segundo conjunto
-     * @returns {Array|Object} - Resultado de la diferencia simétrica
-     */
+    // Operación de diferencia simétrica (optimizada para conjuntos anidados)
     symmetricDifference(set1, set2) {
-        // Validación de existencia de conjuntos
         this._validateSetsExist(set1, set2);
 
-        // Casos especiales con conjuntos infinitos
-        if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
-            return this._handleInfiniteOperation('symmetricDifference', set1, set2);
+        const steps = [];
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Identificar los elementos de los conjuntos ${set1} y ${set2}`,
+                detail: `Conjunto ${set1}: ${this._getSetRepresentation(set1)}\nConjunto ${set2}: ${this._getSetRepresentation(set2)}`
+            });
         }
 
-        // Caso de conjuntos finitos - implementación optimizada
+        if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
+            const result = this._handleInfiniteOperation('symmetricDifference', set1, set2);
+
+            if (this.stepByStepMode) {
+                steps.push({
+                    description: `Operación con conjuntos infinitos`,
+                    detail: `La diferencia simétrica entre conjuntos infinitos requiere un tratamiento especial`
+                });
+                steps.push({
+                    description: `Resultado final`,
+                    detail: `${set1} Δ ${set2} = ${typeof result === 'object' ? result.representation : result}`
+                });
+                return {result, steps};
+            }
+
+            return result;
+        }
+
         const elements1 = this.sets.get(set1);
         const elements2 = this.sets.get(set2);
 
-        // Optimización: usar Sets para operaciones de búsqueda O(1)
-        const set1Elements = new Set(elements1);
-        const set2Elements = new Set(elements2);
-
-        const inSet1NotInSet2 = elements1.filter(element => !set2Elements.has(element));
-        const inSet2NotInSet1 = elements2.filter(element => !set1Elements.has(element));
-
-        return [...inSet1NotInSet2, ...inSet2NotInSet1];
-    }
-
-    /**
-     * Verifica si un conjunto es subconjunto de otro
-     * @param {string} subset - Nombre del posible subconjunto
-     * @param {string} superset - Nombre del posible superconjunto
-     * @returns {boolean}
-     */
-    isSubset(subset, superset) {
-        // Validación de existencia de conjuntos
-        this._validateSetsExist(subset, superset);
-
-        // Casos especiales con conjuntos infinitos
-        if (this.infiniteSets.has(subset) || this.infiniteSets.has(superset)) {
-            return this._handleInfiniteOperation('isSubset', subset, superset);
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Calcular diferencias en ambas direcciones`,
+                detail: `La diferencia simétrica es (${set1} - ${set2}) ∪ (${set2} - ${set1})`
+            });
         }
 
-        // Caso de conjuntos finitos - implementación optimizada
+        // Elementos en set1 pero no en set2
+        const inSet1NotInSet2 = elements1.filter(element1 =>
+            !elements2.some(element2 => this._elementsEqual(element1, element2))
+        );
+
+        // Elementos en set2 pero no en set1
+        const inSet2NotInSet1 = elements2.filter(element2 =>
+            !elements1.some(element1 => this._elementsEqual(element1, element2))
+        );
+
+        // Unir ambas diferencias
+        const result = [...inSet1NotInSet2, ...inSet2NotInSet1];
+
+        if (this.stepByStepMode) {
+            const formattedInSet1NotInSet2 = this._formatElementsArray(inSet1NotInSet2);
+            const formattedInSet2NotInSet1 = this._formatElementsArray(inSet2NotInSet1);
+            const formattedResult = this._formatElementsArray(result);
+
+            steps.push({
+                description: `Elementos únicos en cada conjunto`,
+                detail: `Elementos en ${set1} pero no en ${set2}: {${inSet1NotInSet2.length > 0 ? formattedInSet1NotInSet2 : '∅'}}\nElementos en ${set2} pero no en ${set1}: {${inSet2NotInSet1.length > 0 ? formattedInSet2NotInSet1 : '∅'}}`
+            });
+
+            steps.push({
+                description: `Resultado final`,
+                detail: `${set1} Δ ${set2} = {${result.length > 0 ? formattedResult : '∅'}}`
+            });
+
+            return {
+                result,
+                steps,
+                type: 'finite',
+                elements: result,
+                representation: `{${formattedResult}}`
+            };
+        }
+
+        return result;
+    }
+
+    // Verificar si un conjunto es subconjunto de otro (optimizado para conjuntos anidados)
+    isSubset(subset, superset) {
+        this._validateSetsExist(subset, superset);
+
+        const steps = [];
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Verificar si ${subset} es subconjunto de ${superset}`,
+                detail: `Conjunto ${subset}: ${this._getSetRepresentation(subset)}\nConjunto ${superset}: ${this._getSetRepresentation(superset)}`
+            });
+        }
+
+        if (this.infiniteSets.has(subset) || this.infiniteSets.has(superset)) {
+            const result = this._handleInfiniteOperation('isSubset', subset, superset);
+
+            if (this.stepByStepMode) {
+                steps.push({
+                    description: `Operación con conjuntos infinitos`,
+                    detail: `La verificación de subconjunto con conjuntos infinitos requiere reglas especiales`
+                });
+
+                let conclusion;
+                if (typeof result === 'boolean') {
+                    conclusion = result ?
+                        `${subset} es subconjunto de ${superset}` :
+                        `${subset} NO es subconjunto de ${superset}`;
+                } else if (result && result.evaluation) {
+                    conclusion = result.evaluation === 'true' ?
+                        `${subset} es subconjunto de ${superset}` :
+                        result.evaluation === 'false' ?
+                            `${subset} NO es subconjunto de ${superset}` :
+                            `No se puede determinar si ${subset} es subconjunto de ${superset}`;
+                } else {
+                    conclusion = `No se puede determinar con certeza si ${subset} es subconjunto de ${superset}`;
+                }
+
+                steps.push({
+                    description: `Resultado final`,
+                    detail: conclusion
+                });
+
+                return {
+                    result,
+                    steps
+                };
+            }
+
+            return result;
+        }
+
         const subsetElements = this.sets.get(subset);
         const supersetElements = this.sets.get(superset);
 
-        // Optimización: usar un Set para búsqueda O(1)
-        const supersetSet = new Set(supersetElements);
-        return subsetElements.every(element => supersetSet.has(element));
-    }
-
-    /**
-     * Calcula el complemento de un conjunto respecto a otro
-     * @param {string} set - Nombre del conjunto a complementar
-     * @param {string} universe - Nombre del conjunto universal de referencia
-     * @returns {Array|Object} - Resultado del complemento
-     */
-    complement(set, universe) {
-        // Validación de existencia de conjuntos
-        this._validateSetsExist(set, universe);
-
-        // Verificar caché
-        const cacheKey = this._getCacheKey('complement', set, universe);
-        if (this.operationCache.has(cacheKey)) {
-            return this.operationCache.get(cacheKey);
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Examinar cada elemento de ${subset}`,
+                detail: `Verificar si todos los elementos de ${subset} están también en ${superset}`
+            });
         }
 
-        // Casos especiales con conjuntos infinitos
+        const isSubsetResult = subsetElements.every(subElement =>
+            supersetElements.some(superElement => this._elementsEqual(subElement, superElement))
+        );
+
+        if (this.stepByStepMode) {
+            const notInSuperset = isSubsetResult ? [] :
+                subsetElements.filter(subElement =>
+                    !supersetElements.some(superElement => this._elementsEqual(subElement, superElement))
+                );
+
+            const formattedNotInSuperset = this._formatElementsArray(notInSuperset);
+
+            if (isSubsetResult) {
+                steps.push({
+                    description: `Todos los elementos de ${subset} están en ${superset}`,
+                    detail: `Por lo tanto, ${subset} es subconjunto de ${superset}`
+                });
+            } else {
+                steps.push({
+                    description: `Elementos de ${subset} que no están en ${superset}`,
+                    detail: `Estos elementos impiden que ${subset} sea subconjunto de ${superset}: {${formattedNotInSuperset}}`
+                });
+            }
+
+            steps.push({
+                description: `Resultado final`,
+                detail: isSubsetResult ?
+                    `${subset} ⊆ ${superset} (Verdadero)` :
+                    `${subset} ⊈ ${superset} (Falso)`
+            });
+
+            return {
+                result: isSubsetResult,
+                steps,
+                type: 'relation',
+                representation: `${subset} ${isSubsetResult ? '⊆' : '⊈'} ${superset}`,
+                evaluation: isSubsetResult ? 'true' : 'false'
+            };
+        }
+
+        return isSubsetResult;
+    }
+
+    // Operación de complemento (optimizada para conjuntos anidados)
+    complement(set, universe) {
+        this._validateSetsExist(set, universe);
+
+        if (!this.stepByStepMode) {
+            const cacheKey = this._getCacheKey('complement', set, universe);
+            if (this.operationCache.has(cacheKey)) {
+                return this.operationCache.get(cacheKey);
+            }
+        }
+
+        const steps = [];
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Calcular el complemento de ${set} respecto a ${universe}`,
+                detail: `Conjunto ${set}: ${this._getSetRepresentation(set)}\nUniverso ${universe}: ${this._getSetRepresentation(universe)}`
+            });
+        }
+
         if (this.infiniteSets.has(set) || this.infiniteSets.has(universe)) {
             const result = this._handleInfiniteOperation('complement', set, universe);
+
+            if (this.stepByStepMode) {
+                steps.push({
+                    description: `Operación con conjuntos infinitos`,
+                    detail: `El complemento con conjuntos infinitos requiere un tratamiento especial`
+                });
+                steps.push({
+                    description: `Resultado final`,
+                    detail: `${set}ᶜ (respecto a ${universe}) = ${typeof result === 'object' ? result.representation : result}`
+                });
+                return {result, steps};
+            }
+
             this.operationCache.set(cacheKey, result);
             return result;
         }
 
-        // Caso de conjuntos finitos
         const setElements = this.sets.get(set);
         const universeElements = this.sets.get(universe);
 
-        // El complemento son los elementos del universo que no están en el conjunto
-        const setElementsSet = new Set(setElements);
-        const result = universeElements.filter(element => !setElementsSet.has(element));
+        if (this.stepByStepMode) {
+            steps.push({
+                description: `Examinar cada elemento del universo ${universe}`,
+                detail: `Identificar qué elementos de ${universe} NO están en ${set}`
+            });
+        }
+
+        const result = universeElements.filter(universeElement =>
+            !setElements.some(setElement => this._elementsEqual(universeElement, setElement))
+        );
+
+        if (this.stepByStepMode) {
+            const resultStr = result.length > 0 ? this._formatElementsArray(result) : '∅';
+
+            steps.push({
+                description: `Elementos del complemento`,
+                detail: `Elementos que están en ${universe} pero no en ${set}: {${resultStr}}`
+            });
+
+            steps.push({
+                description: `Resultado final`,
+                detail: `${set}ᶜ (respecto a ${universe}) = {${resultStr}}`
+            });
+
+            return {
+                result,
+                steps,
+                type: 'finite',
+                elements: result,
+                representation: `{${this._formatElementsArray(result)}}`
+            };
+        }
 
         this.operationCache.set(cacheKey, result);
         return result;
     }
 
-    /**
-     * Maneja operaciones con conjuntos infinitos
-     * @private
-     * @param {string} operation - Tipo de operación
-     * @param {string} set1 - Primer conjunto
-     * @param {string} set2 - Segundo conjunto
-     * @returns {Object} - Resultado de la operación
-     */
+    // Método para manejar operaciones con conjuntos infinitos
     _handleInfiniteOperation(operation, set1, set2) {
         const isSet1Infinite = this.infiniteSets.has(set1);
         const isSet2Infinite = this.infiniteSets.has(set2);
 
-        // Definición de los conjuntos
         const set1Def = isSet1Infinite
             ? this.infiniteSets.get(set1).definition
-            : `{${this.sets.get(set1).join(', ')}}`;
+            : `{${this._formatElementsArray(this.sets.get(set1))}}`;
 
         const set2Def = isSet2Infinite
             ? this.infiniteSets.get(set2).definition
-            : `{${this.sets.get(set2).join(', ')}}`;
+            : `{${this._formatElementsArray(this.sets.get(set2))}}`;
 
-        // Implementación para diferentes operaciones
         switch (operation) {
             case 'union':
-                // Reglas de unión con conjuntos infinitos
                 if (this._isUniversalSet(set1) || this._isUniversalSet(set2)) {
                     return {
                         type: 'infinite',
-                        definition: 'U', // Conjunto universal
+                        definition: 'U',
                         representation: 'U'
                     };
                 }
@@ -536,7 +877,6 @@ class SetTheory {
                 };
 
             case 'intersection':
-                // Si un conjunto es finito, podemos filtrar
                 if (!isSet1Infinite) {
                     const elements1 = this.sets.get(set1);
                     const set2Test = this.infiniteSets.get(set2).membershipTest;
@@ -548,7 +888,6 @@ class SetTheory {
                     return elements2.filter(el => set1Test(el));
                 }
 
-                // Ambos conjuntos son infinitos
                 return {
                     type: 'infinite',
                     definition: `${set1Def} ∩ ${set2Def}`,
@@ -556,14 +895,12 @@ class SetTheory {
                 };
 
             case 'difference':
-                // Si el primer conjunto es finito, podemos filtrar
                 if (!isSet1Infinite) {
                     const elements1 = this.sets.get(set1);
                     const set2Test = this.infiniteSets.get(set2).membershipTest;
                     return elements1.filter(el => !set2Test(el));
                 }
 
-                // El resultado es infinito
                 return {
                     type: 'infinite',
                     definition: `${set1Def} - ${set2Def}`,
@@ -578,7 +915,6 @@ class SetTheory {
                 };
 
             case 'complement':
-                // Complemento de un conjunto respecto a otro
                 if (this._isUniversalSet(set2)) {
                     return {
                         type: 'infinite',
@@ -587,12 +923,7 @@ class SetTheory {
                     };
                 }
 
-                // Si el conjunto a complementar es finito
                 if (!isSet1Infinite) {
-                    const elements1 = this.sets.get(set1);
-                    const set2Test = this.infiniteSets.get(set2).membershipTest;
-
-                    // Para conjuntos finitos respecto a infinitos, el resultado es infinito
                     return {
                         type: 'infinite',
                         definition: `${set2Def} - ${set1Def}`,
@@ -607,22 +938,18 @@ class SetTheory {
                 };
 
             case 'isSubset':
-                // Algunos casos especiales conocidos
                 if (this._isUniversalSet(set2)) return true;
                 if (this._isUniversalSet(set1) && !this._isUniversalSet(set2)) return false;
 
-                // Si subset es finito, podemos verificar cada elemento
                 if (!isSet1Infinite) {
                     const elements = this.sets.get(set1);
                     const superTest = this.infiniteSets.get(set2).membershipTest;
                     return elements.every(el => superTest(el));
                 }
 
-                // Relación conocida (por ejemplo, N ⊂ Z ⊂ Q ⊂ R)
                 const relation = this._checkKnownSetRelation(set1, set2);
                 if (relation !== null) return relation;
 
-                // En otros casos, retornamos una representación de la relación
                 return {
                     type: 'relation',
                     representation: `${set1} ⊆ ${set2}`,
@@ -634,50 +961,31 @@ class SetTheory {
         }
     }
 
-    /**
-     * Verifica si un conjunto es universal (contiene todos los elementos)
-     * @private
-     * @param {string} setName - Nombre del conjunto
-     * @returns {boolean}
-     */
     _isUniversalSet(setName) {
         if (!this.infiniteSets.has(setName)) return false;
         const def = this.infiniteSets.get(setName).definition;
         return def === 'U' || def === 'Universal';
     }
 
-    /**
-     * Verifica relaciones conocidas entre conjuntos infinitos
-     * @private
-     * @param {string} set1 - Primer conjunto
-     * @param {string} set2 - Segundo conjunto
-     * @returns {boolean|null} - true si es subconjunto, false si no, null si no se conoce
-     */
     _checkKnownSetRelation(set1, set2) {
         if (!this.infiniteSets.has(set1) || !this.infiniteSets.has(set2)) return null;
 
         const def1 = this.infiniteSets.get(set1).definition;
         const def2 = this.infiniteSets.get(set2).definition;
 
-        // Relaciones numéricas conocidas
         const hierarchy = ['N', 'Z', 'Q', 'R', 'C', 'U'];
         const index1 = hierarchy.indexOf(def1);
         const index2 = hierarchy.indexOf(def2);
 
         if (index1 >= 0 && index2 >= 0) {
-            return index1 <= index2; // set1 es subconjunto de set2 si su índice es menor o igual
+            return index1 <= index2;
         }
 
-        return null; // Relación desconocida
+        return null;
     }
 
-    /**
-     * Evalúa una expresión de conjuntos
-     * @param {string} expression - Expresión a evaluar
-     * @returns {Object} - Resultado de la evaluación, o un objeto con el resultado y los pasos si stepByStepMode está activo
-     */
+    // Método para evaluar expresiones de conjuntos
     evaluateExpression(expression) {
-        // Preparar pasos para el modo paso a paso
         const steps = [];
         if (this.stepByStepMode) {
             steps.push({
@@ -686,7 +994,6 @@ class SetTheory {
             });
         }
 
-        // Tokenizar la expresión
         const tokens = this._tokenizeExpression(expression);
 
         if (this.stepByStepMode) {
@@ -701,10 +1008,8 @@ class SetTheory {
             });
         }
 
-        // Construir árbol de sintaxis y evaluar
         const result = this._parseAndEvaluate(tokens, steps);
 
-        // Si estamos en modo paso a paso, devolver tanto el resultado como los pasos
         if (this.stepByStepMode) {
             return {
                 result,
@@ -715,45 +1020,26 @@ class SetTheory {
         return result;
     }
 
-    /**
-     * Tokeniza una expresión de conjuntos
-     * @private
-     * @param {string} expression - Expresión a tokenizar
-     * @returns {Array} - Array de tokens
-     */
     _tokenizeExpression(expression) {
-        // Pre-procesamiento: manejar casos especiales como (A)ᶜ
         let processedExpr = expression;
 
-        // Simplemente eliminar llaves sueltas para evitar errores, pero no insertar marcadores
+        // Eliminar llaves externas y preparar el complemento
         processedExpr = processedExpr.replace(/[{}]/g, ' ');
-
-        // Detectar patrones de (X)ᶜ y transformarlos a X ᶜ para procesamiento adecuado
         processedExpr = processedExpr.replace(/\(([A-Z])\)ᶜ/g, '($1) ᶜ');
 
-        // Separar explícitamente cada tipo de token
-        // Añadir espacios alrededor de operadores y paréntesis para facilitar el split
+        // Separar todos los tokens con espacios
         processedExpr = processedExpr
             .replace(/([A-Z])/g, ' $1 ')
             .replace(/([∪∩\-Δ⊆ᶜ(){}|])/g, ' $1 ');
 
-        // Dividir por espacios y filtrar tokens vacíos
+        // Dividir por espacios y filtrar espacios vacíos
         const tokens = processedExpr.split(/\s+/).filter(token => token.trim() !== '');
 
         return tokens;
     }
 
-    /**
-     * Parsea y evalúa una expresión de conjuntos tokenizada
-     * @private
-     * @param {Array} tokens - Tokens de la expresión
-     * @param {Array} steps - Array para almacenar los pasos del proceso (opcional)
-     * @returns {Object} - Resultado de la evaluación
-     */
     _parseAndEvaluate(tokens, steps = []) {
         try {
-            // Si después de procesar llegamos a tener tokens vacíos,
-            // devolvemos un conjunto vacío en lugar de fallar
             if (!tokens || tokens.length === 0) {
                 if (this.stepByStepMode && steps) {
                     steps.push({
@@ -762,7 +1048,6 @@ class SetTheory {
                     });
                 }
 
-                // Devolver un resultado vacío en formato adecuado
                 return {
                     type: 'finite',
                     elements: [],
@@ -770,22 +1055,18 @@ class SetTheory {
                 };
             }
 
-            // Verifica que todos los conjuntos mencionados existan
+            // Verificar conjuntos no definidos y crearlos vacíos solo en modo educativo
             const setNames = [...this.sets.keys(), ...this.infiniteSets.keys()];
-
-            // Verificar solo letras mayúsculas que representan conjuntos
             const unknownSets = tokens.filter(t =>
                 /^[A-Z]$/.test(t) && !setNames.includes(t));
 
             if (unknownSets.length > 0) {
-                // Si estamos en modo paso a paso, registramos el error pero intentamos continuar
                 if (this.stepByStepMode && steps) {
                     steps.push({
                         description: `Conjuntos no definidos detectados`,
                         detail: `Los siguientes conjuntos no están definidos: ${unknownSets.join(', ')}\nSe necesita definir estos conjuntos antes de usarlos en una expresión.`
                     });
 
-                    // Crear conjuntos temporales vacíos para permitir continuar la evaluación
                     for (const setName of unknownSets) {
                         this.addSet(setName, []);
 
@@ -795,12 +1076,11 @@ class SetTheory {
                         });
                     }
                 } else {
-                    // En modo normal, lanzar error
                     throw new Error(`Conjuntos no definidos: ${unknownSets.join(', ')}`);
                 }
             }
 
-            // Convertir la expresión infija a postfija (notación polaca inversa)
+            // Convertir a notación postfija
             const postfixTokens = this._convertToPostfix(tokens);
 
             if (this.stepByStepMode && steps) {
@@ -815,7 +1095,6 @@ class SetTheory {
         } catch (error) {
             console.error('Error al evaluar expresión:', error);
 
-            // Registrar el error en los pasos si estamos en modo paso a paso
             if (this.stepByStepMode && steps) {
                 steps.push({
                     description: `Error en la evaluación`,
@@ -823,11 +1102,9 @@ class SetTheory {
                 });
             }
 
-            // Propagar el error o devolver un resultado vacío
             if (!this.stepByStepMode) {
-                throw error; // Propagar el error para manejo externo
+                throw error;
             } else {
-                // En modo paso a paso, devolver un resultado con error para mostrar en UI
                 return {
                     type: 'finite',
                     elements: [],
@@ -838,15 +1115,9 @@ class SetTheory {
         }
     }
 
-    /**
-     * Convierte una expresión infija a postfija usando el algoritmo shunting yard
-     * @private
-     * @param {Array} tokens - Tokens en notación infija
-     * @returns {Array} - Tokens en notación postfija
-     */
     _convertToPostfix(tokens) {
         try {
-            // Validar que haya al menos un operando
+            // Verificar si hay al menos un operando
             let hasOperand = false;
             for (const token of tokens) {
                 if (/^[A-Z]$/.test(token)) {
@@ -856,23 +1127,23 @@ class SetTheory {
             }
 
             if (!hasOperand && this.stepByStepMode) {
-                // Si no hay operandos, devolvemos un array vacío para que se maneje adecuadamente
                 return [];
             }
 
             const output = [];
             const operatorStack = [];
 
-            // Definir precedencia de operadores (mayor número = mayor precedencia)
+            // Precedencia de operadores
             const precedence = {
-                '⊆': 1,
-                '∪': 2,
-                'Δ': 2,
-                '∩': 3,
-                '-': 3,
-                'ᶜ': 4   // Complemento tiene la mayor precedencia
+                '⊆': 1,  // Subconjunto (menor precedencia)
+                '∪': 2,  // Unión
+                'Δ': 2,  // Diferencia simétrica
+                '∩': 3,  // Intersección
+                '-': 3,  // Diferencia
+                'ᶜ': 4   // Complemento (mayor precedencia)
             };
 
+            // Algoritmo Shunting Yard
             for (let i = 0; i < tokens.length; i++) {
                 const token = tokens[i];
 
@@ -880,10 +1151,10 @@ class SetTheory {
                 if (/^[A-Z]$/.test(token)) {
                     output.push(token);
 
-                    // Verificar si el siguiente token es un complemento y aplicarlo inmediatamente
+                    // Comprobar si va seguido de un complemento
                     if (i + 1 < tokens.length && tokens[i + 1] === 'ᶜ') {
                         output.push(tokens[i + 1]);
-                        i++; // Saltar el complemento
+                        i++;
                     }
                 }
                 // Si es un paréntesis izquierdo
@@ -892,32 +1163,31 @@ class SetTheory {
                 }
                 // Si es un paréntesis derecho
                 else if (token === ')') {
-                    // Sacar operadores de la pila hasta encontrar el paréntesis izquierdo
+                    // Desapilar operadores hasta encontrar el paréntesis izquierdo
                     while (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] !== '(') {
                         output.push(operatorStack.pop());
                     }
 
-                    // Descartar el paréntesis izquierdo
+                    // Quitar el paréntesis izquierdo
                     if (operatorStack.length > 0 && operatorStack[operatorStack.length - 1] === '(') {
                         operatorStack.pop();
                     } else {
                         throw new Error('Paréntesis desbalanceados en la expresión');
                     }
 
-                    // Si después del paréntesis hay un complemento, aplicarlo al resultado de la subexpresión
+                    // Comprobar si va seguido de un complemento
                     if (i + 1 < tokens.length && tokens[i + 1] === 'ᶜ') {
                         output.push(tokens[i + 1]);
-                        i++; // Saltar el complemento
+                        i++;
                     }
                 }
                 // Si es un operador
                 else if (precedence[token] !== undefined) {
-                    // Si es complemento, lo manejamos de manera especial en las otras cláusulas
                     if (token === 'ᶜ') {
-                        // Si llega aislado, puede ser un error de parseo previo, pero intentamos manejarlo
+                        // El complemento es un operador unario y va inmediatamente después del operando
                         output.push(token);
                     } else {
-                        // Mientras haya operadores en la pila con mayor o igual precedencia
+                        // Para operadores binarios, aplicar las reglas de precedencia
                         while (
                             operatorStack.length > 0 &&
                             operatorStack[operatorStack.length - 1] !== '(' &&
@@ -926,18 +1196,16 @@ class SetTheory {
                             output.push(operatorStack.pop());
                         }
 
-                        // Añadir el operador actual a la pila
                         operatorStack.push(token);
                     }
                 }
-                // No necesitamos manejar llaves o barras verticales ya que fueron eliminadas en el preprocesamiento
                 else {
+                    // Token no reconocido
                     console.warn(`Token no reconocido y será ignorado: ${token}`);
-                    // No lanzar error, simplemente ignorar tokens desconocidos para mayor robustez
                 }
             }
 
-            // Sacar los operadores restantes de la pila
+            // Desapilar los operadores restantes
             while (operatorStack.length > 0) {
                 const op = operatorStack.pop();
                 if (op === '(') {
@@ -949,21 +1217,13 @@ class SetTheory {
             return output;
         } catch (error) {
             console.error('Error en conversión a postfijo:', error);
-            // En caso de error, devolver una expresión mínima válida para evitar bloqueos
-            return ['A']; // Devolver al menos un token válido
+            // Devolver un token de conjunto por defecto para evitar errores críticos
+            return ['A'];
         }
     }
 
-    /**
-     * Evalúa una expresión en notación postfija
-     * @private
-     * @param {Array} tokens - Tokens en notación postfija
-     * @param {Array} steps - Array para almacenar los pasos del proceso (opcional)
-     * @returns {Object} - Resultado de la evaluación
-     */
     _evaluatePostfix(tokens, steps = []) {
         try {
-            // Verificar tokens
             if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
                 throw new Error('Tokens inválidos para evaluación postfija');
             }
@@ -979,10 +1239,10 @@ class SetTheory {
                 });
             }
 
+            // Procesar cada token
             for (const token of tokens) {
-                // Si es un conjunto (operando)
+                // Si es un conjunto
                 if (/^[A-Z]$/.test(token)) {
-                    // Conjunto normal
                     stack.push(token);
 
                     if (this.stepByStepMode && steps) {
@@ -1001,65 +1261,59 @@ class SetTheory {
                     const set = stack.pop();
                     let universe;
 
-                    // Buscar un conjunto universal adecuado
+                    // Buscar un conjunto universal para el complemento
                     const allSets = [...this.sets.keys(), ...this.infiniteSets.keys()];
 
-                    // Verificar si ya existe un conjunto universal U
                     if (allSets.includes('U')) {
                         universe = 'U';
                     }
-                    // Si no hay U, buscar o crear un universo dinámico basado en la unión de todos los conjuntos
                     else {
-                        // Filtrar conjuntos temporales y el conjunto que estamos complementando
+                        // Crear un universo ad-hoc si no existe uno definido
                         const nonTempSets = allSets.filter(name =>
                             !name.startsWith('_temp') && name !== set);
 
                         if (nonTempSets.length > 0) {
-                            // Si el conjunto "U" no existe, intentamos crearlo como la unión de todos los conjuntos
                             if (!this.sets.has('U') && !this.infiniteSets.has('U')) {
                                 try {
-                                    // Crear conjunto U como la unión de todos los conjuntos existentes
+                                    // Usar el primer conjunto disponible o crear uno combinando todos
                                     if (nonTempSets.length === 1) {
-                                        // Solo hay un conjunto, usarlo como universo
                                         universe = nonTempSets[0];
                                     } else {
-                                        // Hay múltiples conjuntos, crear U como unión de todos
-                                        let unionElements = new Set();
+                                        // Crear un universo combinando todos los conjuntos disponibles
+                                        const unionElements = [];
 
                                         for (const setName of nonTempSets) {
                                             if (this.sets.has(setName)) {
-                                                // Para conjuntos finitos, añadir sus elementos
                                                 const elements = this.sets.get(setName);
-                                                elements.forEach(elem => unionElements.add(elem));
+                                                for (const elem of elements) {
+                                                    if (!unionElements.some(e => this._elementsEqual(e, elem))) {
+                                                        unionElements.push(elem);
+                                                    }
+                                                }
                                             }
                                         }
 
-                                        // Añadir U como conjunto universal (solo si no es vacío)
-                                        if (unionElements.size > 0) {
-                                            this.addSet('U', Array.from(unionElements));
+                                        if (unionElements.length > 0) {
+                                            this.addSet('U', unionElements);
                                             universe = 'U';
 
                                             if (this.stepByStepMode && steps) {
                                                 steps.push({
                                                     description: `Creación del universo U`,
-                                                    detail: `Se ha creado automáticamente el universo U = {${Array.from(unionElements).join(', ')}} como la unión de todos los conjuntos existentes.`
+                                                    detail: `Se ha creado automáticamente el universo U = {${this._formatElementsArray(unionElements)}} como la unión de todos los conjuntos existentes.`
                                                 });
                                             }
                                         } else {
-                                            // Si no hay elementos, usar el último conjunto no temporal
                                             universe = nonTempSets[nonTempSets.length - 1];
                                         }
                                     }
                                 } catch (err) {
-                                    // En caso de error, usar el último conjunto como universo
                                     universe = nonTempSets[nonTempSets.length - 1];
                                 }
                             } else {
-                                // Ya existe un U, usarlo
                                 universe = 'U';
                             }
                         } else if (allSets.length > 0) {
-                            // Si solo hay conjuntos temporales, usar el último como universo
                             universe = allSets[allSets.length - 1];
                         } else {
                             throw new Error('No hay conjunto universal para calcular el complemento');
@@ -1075,15 +1329,12 @@ class SetTheory {
 
                     // Calcular el complemento
                     const result = this.complement(set, universe);
-
-                    // Crear un conjunto temporal con el resultado
                     const tempSetName = `_temp${tempSetCounter++}`;
                     this._storeResultAsSet(tempSetName, result);
 
-                    // Obtener una representación para mostrar en los pasos
                     let resultRepresentation;
                     if (Array.isArray(result)) {
-                        resultRepresentation = `{${result.join(', ')}}`;
+                        resultRepresentation = `{${this._formatElementsArray(result)}}`;
                     } else if (result && result.representation) {
                         resultRepresentation = result.representation;
                     } else {
@@ -1097,7 +1348,6 @@ class SetTheory {
                         });
                     }
 
-                    // Poner el conjunto temporal en la pila
                     stack.push(tempSetName);
 
                     if (this.stepByStepMode && steps) {
@@ -1144,9 +1394,8 @@ class SetTheory {
                         });
                     }
 
+                    // Ejecutar la operación correspondiente
                     let result;
-
-                    // Realizar la operación según el operador
                     switch (token) {
                         case '∪':
                             result = this.union(set1, set2);
@@ -1179,14 +1428,16 @@ class SetTheory {
                             throw new Error(`Operador no reconocido: ${token}`);
                     }
 
-                    // Obtener una representación para mostrar en los pasos
+                    // Formatear el resultado para mostrarlo en los pasos
                     let resultRepresentation;
                     if (Array.isArray(result)) {
-                        resultRepresentation = `{${result.join(', ')}}`;
+                        resultRepresentation = `{${this._formatElementsArray(result)}}`;
                     } else if (result && result.representation) {
                         resultRepresentation = result.representation;
+                    } else if (result && result.result && result.result.elements) {
+                        resultRepresentation = `{${this._formatElementsArray(result.result.elements)}}`;
                     } else if (result && result.result && Array.isArray(result.result)) {
-                        resultRepresentation = `{${result.result.join(', ')}}`;
+                        resultRepresentation = `{${this._formatElementsArray(result.result)}}`;
                     } else {
                         resultRepresentation = "Resultado de la operación";
                     }
@@ -1198,11 +1449,9 @@ class SetTheory {
                         });
                     }
 
-                    // Crear un conjunto temporal con el resultado
+                    // Almacenar el resultado como conjunto temporal
                     const tempSetName = `_temp${tempSetCounter++}`;
                     this._storeResultAsSet(tempSetName, result);
-
-                    // Poner el conjunto temporal en la pila
                     stack.push(tempSetName);
 
                     if (this.stepByStepMode && steps) {
@@ -1214,8 +1463,7 @@ class SetTheory {
                 }
             }
 
-            // Al final debe quedar un solo elemento en la pila (el resultado)
-            // Si hay más de un elemento, intentaremos recuperarnos
+            // Al final debe quedar exactamente un resultado en la pila
             if (stack.length !== 1) {
                 if (this.stepByStepMode && steps) {
                     steps.push({
@@ -1223,24 +1471,21 @@ class SetTheory {
                         detail: `La evaluación de la expresión resultó en ${stack.length} valores en lugar de uno solo.\nEsto puede deberse a operadores faltantes o sobrantes en la expresión.`
                     });
 
+                    // Intentar recuperarse combinando los resultados si hay más de uno
                     if (stack.length > 1) {
-                        // Si hay múltiples elementos, intentamos combinarlos con unión implícita
                         steps.push({
                             description: `Recuperación: combinando resultados`,
                             detail: `Se combinarán los ${stack.length} conjuntos con la operación de unión para obtener un resultado final.`
                         });
 
-                        // Combinar todos los elementos usando unión
                         while (stack.length > 1) {
                             const set2 = stack.pop();
                             const set1 = stack.pop();
 
-                            // Aplicar unión entre los dos conjuntos
                             let result;
                             try {
                                 result = this.union(set1, set2);
                             } catch (error) {
-                                // Si la unión falla, crear un conjunto vacío como fallback
                                 const tempSetName = `_temp_recovery${tempSetCounter++}`;
                                 this.addSet(tempSetName, []);
                                 result = tempSetName;
@@ -1251,11 +1496,8 @@ class SetTheory {
                                 });
                             }
 
-                            // Crear un conjunto temporal con el resultado
                             const tempSetName = `_temp${tempSetCounter++}`;
                             this._storeResultAsSet(tempSetName, result);
-
-                            // Poner el conjunto temporal de vuelta en la pila
                             stack.push(tempSetName);
 
                             steps.push({
@@ -1264,7 +1506,7 @@ class SetTheory {
                             });
                         }
                     } else if (stack.length === 0) {
-                        // Si no hay elementos en la pila, crear un conjunto vacío
+                        // Si no queda nada en la pila, devolver un conjunto vacío
                         const tempSetName = `_temp_empty${tempSetCounter++}`;
                         this.addSet(tempSetName, []);
                         stack.push(tempSetName);
@@ -1275,7 +1517,6 @@ class SetTheory {
                         });
                     }
                 } else {
-                    // En modo normal, reportar el error
                     throw new Error('Expresión inválida: la evaluación no resultó en un único valor');
                 }
             }
@@ -1291,31 +1532,31 @@ class SetTheory {
                 });
             }
 
-            // Si es un conjunto temporal, obtener sus elementos
+            // Formatear el resultado según su tipo
             if (finalSetName.startsWith('_temp')) {
                 if (this.sets.has(finalSetName)) {
                     const elements = this.sets.get(finalSetName);
+                    const formattedElements = this._formatElementsArray(elements);
                     finalResult = {
                         type: 'finite',
                         elements,
-                        representation: `{${elements.join(', ')}}`
+                        representation: `{${formattedElements}}`
                     };
                 } else {
-                    // Si no existe, podría ser un conjunto infinito o un error
                     finalResult = {
                         type: 'unknown',
                         representation: 'Resultado desconocido'
                     };
                 }
             }
-            // Si es un conjunto existente, devolverlo directamente
             else {
                 if (this.sets.has(finalSetName)) {
                     const elements = this.sets.get(finalSetName);
+                    const formattedElements = this._formatElementsArray(elements);
                     finalResult = {
                         type: 'finite',
                         elements,
-                        representation: `{${elements.join(', ')}}`
+                        representation: `{${formattedElements}}`
                     };
                 } else if (this.infiniteSets.has(finalSetName)) {
                     const info = this.infiniteSets.get(finalSetName);
@@ -1345,7 +1586,7 @@ class SetTheory {
                 });
             }
 
-            // Limpiar los conjuntos temporales
+            // Limpieza de conjuntos temporales
             this._cleanupTempSets();
 
             return finalResult;
@@ -1353,7 +1594,6 @@ class SetTheory {
         } catch (error) {
             console.error('Error en evaluación postfija:', error);
 
-            // Registrar el error en los pasos si estamos en modo paso a paso
             if (this.stepByStepMode && steps) {
                 steps.push({
                     description: `Error en la evaluación`,
@@ -1361,7 +1601,6 @@ class SetTheory {
                 });
             }
 
-            // Devolver un conjunto vacío en caso de error para evitar bloquear la interfaz
             return {
                 type: 'finite',
                 elements: [],
@@ -1371,35 +1610,25 @@ class SetTheory {
         }
     }
 
-    /**
-     * Almacena un resultado como un conjunto temporal
-     * @private
-     * @param {string} setName - Nombre del conjunto temporal
-     * @param {Array|Object} result - Resultado a almacenar
-     */
+    // Método auxiliar para almacenar un resultado como conjunto temporal
     _storeResultAsSet(setName, result) {
-        // Verificación de casos extremos para evitar errores
         if (!setName || typeof setName !== 'string') {
             console.error('Nombre de conjunto inválido:', setName);
             return;
         }
 
         try {
-            // Caso 1: El resultado es un array simple de elementos
             if (Array.isArray(result)) {
                 this.addSet(setName, result);
                 return;
             }
 
-            // Caso 2: El resultado tiene un formato de objeto con tipo y elementos
             if (result && typeof result === 'object') {
-                // Caso 2.1: Objeto con estructura {type: 'finite', elements: [...]}
                 if (result.type === 'finite' && Array.isArray(result.elements)) {
                     this.addSet(setName, result.elements);
                     return;
                 }
 
-                // Caso 2.2: Objeto con estructura {result: [...]} (del modo paso a paso)
                 if (result.result) {
                     if (Array.isArray(result.result)) {
                         this.addSet(setName, result.result);
@@ -1410,26 +1639,21 @@ class SetTheory {
                     }
                 }
 
-                // Caso 2.3: Objeto con propiedad elements directa
                 if (result.elements && Array.isArray(result.elements)) {
                     this.addSet(setName, result.elements);
                     return;
                 }
 
-                // Caso 2.4: Para conjuntos infinitos, hacemos un conjunto mínimo representativo
                 if (result.type === 'infinite' || (result.result && result.result.type === 'infinite')) {
-                    // Crear un conjunto vacío como representación mínima
                     this.addSet(setName, []);
                     return;
                 }
             }
 
-            // Caso por defecto: creamos un conjunto vacío si no pudimos extraer elementos
-            // Esto permite que la evaluación continúe sin errores
+            // Si no se pudo procesar, crear un conjunto vacío
             this.addSet(setName, []);
 
         } catch (error) {
-            // Manejo de errores: si falla, creamos un conjunto vacío para evitar bloqueos
             console.error('Error al almacenar resultado como conjunto:', error);
             try {
                 this.addSet(setName, []);
@@ -1439,12 +1663,8 @@ class SetTheory {
         }
     }
 
-    /**
-     * Limpia todos los conjuntos temporales
-     * @private
-     */
+    // Método para eliminar conjuntos temporales
     _cleanupTempSets() {
-        // Eliminar todos los conjuntos temporales creados para la evaluación
         for (const setName of this.sets.keys()) {
             if (setName.startsWith('_temp')) {
                 this.sets.delete(setName);
@@ -1452,26 +1672,20 @@ class SetTheory {
         }
     }
 
-    /**
-     * Obtiene todos los conjuntos definidos
-     * @returns {Object} - Objeto con todos los conjuntos
-     */
+    // Método para obtener todos los conjuntos definidos
     getAllSets() {
         const allSets = {};
 
-        // Añadir conjuntos finitos
         for (const [name, elements] of this.sets.entries()) {
-            // Omitir conjuntos temporales (los que empiezan con _temp)
             if (!name.startsWith('_temp')) {
                 allSets[name] = {
                     type: 'finite',
                     elements,
-                    representation: `{${elements.join(', ')}}`
+                    representation: `{${this._formatElementsArray(elements)}}`
                 };
             }
         }
 
-        // Añadir conjuntos infinitos
         for (const [name, info] of this.infiniteSets.entries()) {
             allSets[name] = {
                 type: 'infinite',
@@ -1481,13 +1695,6 @@ class SetTheory {
         }
 
         return allSets;
-    }
-
-    /**
-     * Inicializa conjuntos numéricos comunes (no utilizado en la versión actual)
-     */
-    initializeCommonSets() {
-        // Esta función ya no se utiliza, pero se mantiene por compatibilidad
     }
 }
 

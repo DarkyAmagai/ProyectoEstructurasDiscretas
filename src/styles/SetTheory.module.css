@@ -133,6 +133,13 @@
     min-width: 200px;
 }
 
+.inputHelper {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.2rem;
+    font-style: italic;
+}
+
 .input {
     padding: 0.5rem 0.75rem;
     border: 1px solid #e1e8ed;
@@ -331,6 +338,55 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* Estilos para conjuntos anidados */
+.nestedSetChip {
+    background-color: rgba(56, 161, 105, 0.15);
+    color: #2f855a;
+    border: 1px solid rgba(56, 161, 105, 0.3);
+    font-family: 'Fira Code', monospace;
+    padding: 0.6rem 1rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.nestedSetChip:hover {
+    background-color: rgba(56, 161, 105, 0.25);
+    box-shadow: 0 4px 8px rgba(56, 161, 105, 0.2);
+    transform: translateY(-3px);
+}
+
+/* Estilo para destacar visualmente los niveles anidados */
+.nestedSetChip:after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 10%;
+    width: 80%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(56, 161, 105, 0.5), transparent);
+    border-radius: 50%;
+}
+
+/* Estilos para referencias a conjuntos */
+.setRefChip {
+    background-color: rgba(214, 158, 46, 0.15);
+    color: #b7791f;
+    border: 1px solid rgba(214, 158, 46, 0.3);
+    font-weight: 600;
+}
+
+.setRefChip:hover {
+    background-color: rgba(214, 158, 46, 0.25);
+    box-shadow: 0 4px 8px rgba(214, 158, 46, 0.2);
+}
+
+/* Contenedor para elementos dentro de un conjunto */
+.elementsContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
 .emptySet {
     font-size: 2rem;
     color: var(--accent-color);
@@ -470,6 +526,13 @@
     font-size: 1rem;
     margin-top: 0;
     margin-bottom: 0.5rem;
+}
+
+.note {
+    font-size: 0.8rem;
+    color: #757575;
+    font-style: italic;
+    margin-top: 0.25rem;
 }
 
 .emptySetPlaceholder {

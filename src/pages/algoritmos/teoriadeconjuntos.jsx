@@ -49,10 +49,23 @@ export default function SetTheoryPage() {
         }
 
         try {
-            // Parsear los elementos del conjunto
-            const elements = newSetElements.split(',')
-                .map(elem => elem.trim())
-                .filter(elem => elem !== '');
+            // Verificamos si tenemos una entrada de conjunto
+            let elements;
+
+            // Detectar si la entrada ya está en formato de conjunto completo
+            // Este enfoque permite soportar conjuntos anidados como {1, 2, {3, 4, {5, 6}}}
+            const input = newSetElements.trim();
+
+            if (input.startsWith('{') && input.endsWith('}')) {
+                // Enviar la entrada completa al mecanismo interno de parsing de conjuntos anidados
+                // Nota: usamos el string completo para que el parser interno lo maneje correctamente
+                elements = input; // Pasar como string para el analizador de conjuntos anidados
+            } else {
+                // Procesamiento de elementos separados por comas
+                elements = input.split(',')
+                    .map(elem => elem.trim())
+                    .filter(elem => elem !== '');
+            }
 
             setTheory.addSet(newSetName, elements);
             setSets(setTheory.getAllSets());
@@ -375,15 +388,22 @@ export default function SetTheoryPage() {
                         </div>
 
                         <div className={styles.inputGroup}>
-                            <label htmlFor="setElements">Elementos (separados por coma)</label>
+                            <label htmlFor="setElements">Elementos (separados por coma o conjunto completo
+                                con {})</label>
                             <input
                                 id="setElements"
                                 type="text"
                                 className={styles.input}
                                 value={newSetElements}
                                 onChange={(e) => setNewSetElements(e.target.value)}
-                                placeholder="Ej: 1, 2, 3, 4"
+                                placeholder="Ej: 1, 2, 3, 4  o  {1, 2, {3, 4}}"
                             />
+                            <small className={styles.inputHelper}>
+                                Puedes ingresar elementos simples separados por coma (ej: <code>1, 2, 3</code>) o un
+                                conjunto completo con
+                                conjuntos anidados usando la notación con llaves (ej: <code>{'{'} 1, 2, {'{'} 3,
+                                4 {'}'} {'}'}</code>).
+                            </small>
                         </div>
 
                         <button
@@ -420,6 +440,13 @@ export default function SetTheoryPage() {
                             <h3 className={styles.exampleTitle}>Conjunto de vocales</h3>
                             <p>Nombre: <strong>Vocales</strong></p>
                             <p>Elementos: <strong>a, e, i, o, u</strong></p>
+                        </div>
+                        <div className={styles.exampleBox}>
+                            <h3 className={styles.exampleTitle}>Conjunto anidado</h3>
+                            <p>Nombre: <strong>Anidado</strong></p>
+                            <p>Elementos: <strong>{'{'} 1, 2, {'{'} 3, 4, {'{'} 5, 6 {'}'} {'}'} {'}'}</strong></p>
+                            <p className={styles.note}>Escribe todo exactamente como se muestra, incluyendo las
+                                llaves.</p>
                         </div>
                     </div>
                 </div>
