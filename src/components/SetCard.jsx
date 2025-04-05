@@ -69,9 +69,29 @@ export default function SetCard({name, setData, onRemove, onDragStart}) {
                 </div>
             );
         } else if (setData.type === 'infinite') {
+            // Verificar si tenemos muestras o una representación personalizada para mostrar
+            const hasSamples = setData.samples && Array.isArray(setData.samples) && setData.samples.length > 0;
+            const sampleDisplay = setData.sampleDisplay || setData.representation;
+            
             return (
                 <div className={`${styles.setContent} ${styles.infiniteSet}`}>
-                    {setData.representation}
+                    <div className={styles.infiniteSetHeader}>
+                        {setData.representation}
+                    </div>
+                    {hasSamples && (
+                        <div className={styles.infiniteSetSamples}>
+                            {setData.samples.map((sample, index) => (
+                                <span key={index} className={styles.infiniteSample}>
+                                    {sample}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    {!hasSamples && sampleDisplay !== setData.representation && (
+                        <div className={styles.infiniteSetSamples}>
+                            {sampleDisplay}
+                        </div>
+                    )}
                 </div>
             );
         } else if (setData.type === 'relation') {

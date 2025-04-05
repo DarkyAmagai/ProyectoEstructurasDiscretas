@@ -28,6 +28,11 @@ export default function SetTheoryPage() {
     const [inputMode, setInputMode] = useState('normal'); // 'normal' o 'expression'
     const [expressionInput, setExpressionInput] = useState('');
 
+    // Estado para creación de conjuntos infinitos personalizados
+    const [isInfiniteSetMode, setIsInfiniteSetMode] = useState(false);
+    const [infiniteSetDefinition, setInfiniteSetDefinition] = useState('');
+    const [infiniteSetSamples, setInfiniteSetSamples] = useState('');
+
     // Inicializar la instancia de SetTheory
     useEffect(() => {
         const theory = new SetTheory();
@@ -49,7 +54,38 @@ export default function SetTheoryPage() {
         }
 
         try {
-            // Verificamos si tenemos una entrada de conjunto
+            // Verificar si es un conjunto infinito personalizado
+            if (isInfiniteSetMode) {
+                if (!infiniteSetDefinition.trim()) {
+                    setError('La definición del conjunto infinito es obligatoria');
+                    return;
+                }
+
+                // Procesar las muestras si existen
+                const samples = infiniteSetSamples.trim()
+                    ? infiniteSetSamples.split(',').map(s => s.trim()).filter(s => s !== '')
+                    : [];
+
+                // Crear un conjunto infinito simplificado (solo para demostración)
+                setTheory.addInfiniteSet(
+                    newSetName,
+                    infiniteSetDefinition,
+                    () => true, // Función genérica de pertenencia (todo elemento pertenece en esta demo)
+                    samples
+                );
+
+                // Actualizar la lista de conjuntos
+                setSets(setTheory.getAllSets());
+
+                // Limpiar el formulario
+                setNewSetName('');
+                setInfiniteSetDefinition('');
+                setInfiniteSetSamples('');
+
+                return;
+            }
+
+            // Para conjuntos finitos: verificamos si tenemos una entrada de conjunto
             let elements;
 
             // Detectar si la entrada ya está en formato de conjunto completo
@@ -375,6 +411,25 @@ export default function SetTheoryPage() {
                 {/* Formulario para agregar nuevo conjunto */}
                 <div className={styles.controls}>
                     <form onSubmit={handleAddSet} className={styles.operationForm}>
+                        <div className={styles.formHeader}>
+                            <div className={styles.inputModeToggle}>
+                                <button
+                                    type="button"
+                                    className={`${styles.modeButton} ${!isInfiniteSetMode ? styles.activeMode : ''}`}
+                                    onClick={() => setIsInfiniteSetMode(false)}
+                                >
+                                    Conjunto Finito
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`${styles.modeButton} ${isInfiniteSetMode ? styles.activeMode : ''}`}
+                                    onClick={() => setIsInfiniteSetMode(true)}
+                                >
+                                    Conjunto Infinito
+                                </button>
+                            </div>
+                        </div>
+                        
                         <div className={styles.inputGroup}>
                             <label htmlFor="setName">Nombre del conjunto</label>
                             <input
@@ -387,24 +442,57 @@ export default function SetTheoryPage() {
                             />
                         </div>
 
-                        <div className={styles.inputGroup}>
-                            <label htmlFor="setElements">Elementos (separados por coma o conjunto completo
-                                con {})</label>
-                            <input
-                                id="setElements"
-                                type="text"
-                                className={styles.input}
-                                value={newSetElements}
-                                onChange={(e) => setNewSetElements(e.target.value)}
-                                placeholder="Ej: 1, 2, 3, 4  o  {1, 2, {3, 4}}"
-                            />
-                            <small className={styles.inputHelper}>
-                                Puedes ingresar elementos simples separados por coma (ej: <code>1, 2, 3</code>) o un
-                                conjunto completo con
-                                conjuntos anidados usando la notación con llaves (ej: <code>{'{'} 1, 2, {'{'} 3,
-                                4 {'}'} {'}'}</code>).
-                            </small>
-                        </div>
+                        {!isInfiniteSetMode ? (
+                            <div className={styles.inputGroup}>
+                                <label htmlFor="setElements">Elementos (separados por coma o conjunto completo
+                                    con {})</label>
+                                <input
+                                    id="setElements"
+                                    type="text"
+                                    className={styles.input}
+                                    value={newSetElements}
+                                    onChange={(e) => setNewSetElements(e.target.value)}
+                                    placeholder="Ej: 1, 2, 3, 4  o  {1, 2, {3, 4}}"
+                                />
+                                <small className={styles.inputHelper}>
+                                    Puedes ingresar elementos simples separados por coma (ej: <code>1, 2, 3</code>) o un
+                                    conjunto completo con
+                                    conjuntos anidados usando la notación con llaves (ej: <code>{'{'} 1, 2, {'{'} 3,
+                                    4 {'}'} {'}'}</code>).
+                                </small>
+                            </div>
+                        ) : (
+                            <>
+                                <div className={styles.inputGroup}>
+                                    <label htmlFor="infiniteSetDefinition">Definición matemática</label>
+                                    <input
+                                        id="infiniteSetDefinition"
+                                        type="text"
+                                        className={styles.input}
+                                        value={infiniteSetDefinition}
+                                        onChange={(e) => setInfiniteSetDefinition(e.target.value)}
+                                        placeholder="Ej: S = {2n | n ∈ ℕ}"
+                                    />
+                                    <small className={styles.inputHelper}>
+                                        Define tu conjunto infinito con notación matemática.
+                                    </small>
+                                </div>
+                                <div className={styles.inputGroup}>
+                                    <label htmlFor="infiniteSetSamples">Ejemplos (separados por coma)</label>
+                                    <input
+                                        id="infiniteSetSamples"
+                                        type="text"
+                                        className={styles.input}
+                                        value={infiniteSetSamples}
+                                        onChange={(e) => setInfiniteSetSamples(e.target.value)}
+                                        placeholder="Ej: 2, 4, 6, 8, 10, ..."
+                                    />
+                                    <small className={styles.inputHelper}>
+                                        Incluye algunos ejemplos representativos. Usa '...' para indicar continuidad.
+                                    </small>
+                                </div>
+                            </>
+                        )}
 
                         <button
                             type="submit"

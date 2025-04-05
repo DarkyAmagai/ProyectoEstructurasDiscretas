@@ -4,6 +4,62 @@ class SetTheory {
         this.infiniteSets = new Map();
         this.operationCache = new Map();
         this.stepByStepMode = false;
+
+        // Inicializar conjuntos infinitos predefinidos con muestras para mejor visualización
+        this.addInfiniteSet('N', 'ℕ = {0, 1, 2, 3, ...}',
+            n => Number.isInteger(n) && n >= 0,
+            [0, 1, 2, 3, 4, 5, '...']
+        );
+
+        this.addInfiniteSet('Z', 'ℤ = {..., -2, -1, 0, 1, 2, ...}',
+            n => Number.isInteger(n),
+            ['...', -2, -1, 0, 1, 2, '...']
+        );
+
+        this.addInfiniteSet('Q', 'ℚ = {racionales}',
+            n => typeof n === 'number' && isFinite(n),
+            ['-2', '-1', '0', '1/2', '1', '2', '22/7', '...']
+        );
+
+        this.addInfiniteSet('R', 'ℝ = {reales}',
+            n => typeof n === 'number',
+            ['-π', '-1', '0', '1/2', '√2', 'π', '...']
+        );
+
+        this.addInfiniteSet('E', 'E = {2, 4, 6, ...}',
+            n => Number.isInteger(n) && n % 2 === 0 && n > 0,
+            [2, 4, 6, 8, 10, '...']
+        );
+
+        this.addInfiniteSet('O', 'O = {1, 3, 5, ...}',
+            n => Number.isInteger(n) && n % 2 === 1 && n > 0,
+            [1, 3, 5, 7, 9, '...']
+        );
+
+        this.addInfiniteSet('P', 'P = {2, 3, 5, 7, 11, ...}',
+            n => {
+                if (n <= 1) return false;
+                if (n <= 3) return true;
+                if (n % 2 === 0 || n % 3 === 0) return false;
+                for (let i = 5; i * i <= n; i += 6) {
+                    if (n % i === 0 || n % (i + 2) === 0) return false;
+                }
+                return true;
+            },
+            [2, 3, 5, 7, 11, 13, '...']
+        );
+
+        // Conjunto universal
+        this.addInfiniteSet('U', 'U = {universal}',
+            () => true,
+            ['...', 'todos los elementos', '...']
+        );
+
+        // Conjunto de números complejos
+        this.addInfiniteSet('C', 'ℂ = {complejos}',
+            n => true, // Simplificado para este contexto
+            ['1', 'i', '1+i', '2-3i', '...']
+        );
     }
 
     setStepByStepMode(mode) {
@@ -295,12 +351,33 @@ class SetTheory {
         this._clearCache();
     }
 
-    addInfiniteSet(name, definition, membershipTest) {
+    addInfiniteSet(name, definition, membershipTest, samples = []) {
         if (!name || name.trim() === '') {
             throw new Error('El nombre del conjunto no puede estar vacío');
         }
 
-        this.infiniteSets.set(name, {definition, membershipTest});
+        if (!definition || typeof definition !== 'string') {
+            throw new Error('La definición del conjunto infinito debe ser una cadena de texto');
+        }
+
+        if (typeof membershipTest !== 'function') {
+            throw new Error('La prueba de pertenencia debe ser una función');
+        }
+
+        // Determinar si el conjunto tiene elementos de muestra para visualización
+        const hasSamples = Array.isArray(samples) && samples.length > 0;
+        const sampleDisplay = hasSamples
+            ? `{${samples.join(', ')}}`
+            : definition;
+
+        this.infiniteSets.set(name, {
+            definition,
+            membershipTest,
+            samples: hasSamples ? samples : [],
+            representation: definition,
+            sampleDisplay
+        });
+        
         this._clearCache();
     }
 
@@ -353,6 +430,8 @@ class SetTheory {
 
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('union', set1, set2);
+            // Asegurar que el resultado tenga el formato correcto
+            const normalizedResult = this._normalizeResult(result, 'union', set1, set2);
 
             if (this.stepByStepMode) {
                 steps.push({
@@ -361,13 +440,13 @@ class SetTheory {
                 });
                 steps.push({
                     description: `Resultado final`,
-                    detail: `${set1} ∪ ${set2} = ${result.representation}`
+                    detail: `${set1} ∪ ${set2} = ${normalizedResult.representation}`
                 });
-                return {result, steps};
+                return {result: normalizedResult, steps};
             }
 
-            this.operationCache.set(this._getCacheKey('union', set1, set2), result);
-            return result;
+            this.operationCache.set(this._getCacheKey('union', set1, set2), normalizedResult);
+            return normalizedResult;
         }
 
         const elements1 = this.sets.get(set1);
@@ -438,6 +517,8 @@ class SetTheory {
 
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('intersection', set1, set2);
+            // Normalizar el resultado para asegurar consistencia
+            const normalizedResult = this._normalizeResult(result, 'intersection', set1, set2);
 
             if (this.stepByStepMode) {
                 steps.push({
@@ -446,13 +527,13 @@ class SetTheory {
                 });
                 steps.push({
                     description: `Resultado final`,
-                    detail: `${set1} ∩ ${set2} = ${typeof result === 'object' ? result.representation : result}`
+                    detail: `${set1} ∩ ${set2} = ${normalizedResult.representation}`
                 });
-                return {result, steps};
+                return {result: normalizedResult, steps};
             }
 
-            this.operationCache.set(this._getCacheKey('intersection', set1, set2), result);
-            return result;
+            this.operationCache.set(this._getCacheKey('intersection', set1, set2), normalizedResult);
+            return normalizedResult;
         }
 
         const elements1 = this.sets.get(set1);
@@ -516,6 +597,8 @@ class SetTheory {
 
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('difference', set1, set2);
+            // Normalizar el resultado para asegurar consistencia
+            const normalizedResult = this._normalizeResult(result, 'difference', set1, set2);
 
             if (this.stepByStepMode) {
                 steps.push({
@@ -524,13 +607,13 @@ class SetTheory {
                 });
                 steps.push({
                     description: `Resultado final`,
-                    detail: `${set1} - ${set2} = ${typeof result === 'object' ? result.representation : result}`
+                    detail: `${set1} - ${set2} = ${normalizedResult.representation}`
                 });
-                return {result, steps};
+                return {result: normalizedResult, steps};
             }
 
-            this.operationCache.set(this._getCacheKey('difference', set1, set2), result);
-            return result;
+            this.operationCache.set(this._getCacheKey('difference', set1, set2), normalizedResult);
+            return normalizedResult;
         }
 
         const elements1 = this.sets.get(set1);
@@ -600,6 +683,8 @@ class SetTheory {
 
         if (this.infiniteSets.has(set1) || this.infiniteSets.has(set2)) {
             const result = this._handleInfiniteOperation('symmetricDifference', set1, set2);
+            // Normalizar el resultado para asegurar consistencia
+            const normalizedResult = this._normalizeResult(result, 'symmetricDifference', set1, set2);
 
             if (this.stepByStepMode) {
                 steps.push({
@@ -608,12 +693,12 @@ class SetTheory {
                 });
                 steps.push({
                     description: `Resultado final`,
-                    detail: `${set1} Δ ${set2} = ${typeof result === 'object' ? result.representation : result}`
+                    detail: `${set1} Δ ${set2} = ${normalizedResult.representation}`
                 });
-                return {result, steps};
+                return {result: normalizedResult, steps};
             }
 
-            return result;
+            return normalizedResult;
         }
 
         const elements1 = this.sets.get(set1);
@@ -790,6 +875,8 @@ class SetTheory {
 
         if (this.infiniteSets.has(set) || this.infiniteSets.has(universe)) {
             const result = this._handleInfiniteOperation('complement', set, universe);
+            // Normalizar el resultado para asegurar consistencia
+            const normalizedResult = this._normalizeResult(result, 'complement', set, universe);
 
             if (this.stepByStepMode) {
                 steps.push({
@@ -798,13 +885,13 @@ class SetTheory {
                 });
                 steps.push({
                     description: `Resultado final`,
-                    detail: `${set}ᶜ (respecto a ${universe}) = ${typeof result === 'object' ? result.representation : result}`
+                    detail: `${set}ᶜ (respecto a ${universe}) = ${normalizedResult.representation}`
                 });
-                return {result, steps};
+                return {result: normalizedResult, steps};
             }
 
-            this.operationCache.set(cacheKey, result);
-            return result;
+            this.operationCache.set(cacheKey, normalizedResult);
+            return normalizedResult;
         }
 
         const setElements = this.sets.get(set);
@@ -847,18 +934,87 @@ class SetTheory {
         return result;
     }
 
+    // Adaptador para convertir elementos estructurados a formatos simples para las pruebas de pertenencia
+    _adaptElementForMembershipTest(element) {
+        if (!element) return null;
+
+        // Si ya es un objeto con nuestra estructura interna
+        if (typeof element === 'object' && element.type) {
+            if (element.type === 'primitive') {
+                return element.value; // Extraer el valor primitivo
+            } else if (element.type === 'setRef') {
+                return element.reference; // Usar la referencia para comparar
+            } else if (element.type === 'set') {
+                // Para conjuntos anidados, podemos usar una representación simplificada
+                return element.elements.map(e => this._adaptElementForMembershipTest(e));
+            }
+        }
+
+        // Para elementos directos (strings, números, etc.)
+        return element;
+    }
+
+    // Método para normalizar un resultado y asegurar que tenga la estructura correcta
+    _normalizeResult(result, operation, set1, set2) {
+        // Si el resultado ya tiene el formato correcto, lo devolvemos
+        if (result && typeof result === 'object' && result.type) {
+            return result;
+        }
+
+        // Si es un array, asumimos que son elementos de un conjunto finito
+        if (Array.isArray(result)) {
+            return {
+                type: 'finite',
+                elements: result,
+                representation: `{${this._formatElementsArray(result)}}`,
+            };
+        }
+
+        // Si es un booleano (como en isSubset)
+        if (typeof result === 'boolean') {
+            return {
+                type: 'relation',
+                representation: `${set1} ${result ? '⊆' : '⊈'} ${set2}`,
+                evaluation: result ? 'true' : 'false'
+            };
+        }
+
+        // Caso por defecto: resultado vacío
+        return {
+            type: 'finite',
+            elements: [],
+            representation: '∅'
+        };
+    }
+
     // Método para manejar operaciones con conjuntos infinitos
     _handleInfiniteOperation(operation, set1, set2) {
         const isSet1Infinite = this.infiniteSets.has(set1);
         const isSet2Infinite = this.infiniteSets.has(set2);
 
+        // Obtener información de los conjuntos
+        const set1Info = isSet1Infinite ? this.infiniteSets.get(set1) : null;
+        const set2Info = isSet2Infinite ? this.infiniteSets.get(set2) : null;
+
+        // Preparar definiciones y muestras para visualización
         const set1Def = isSet1Infinite
-            ? this.infiniteSets.get(set1).definition
+            ? set1Info.definition
             : `{${this._formatElementsArray(this.sets.get(set1))}}`;
 
         const set2Def = isSet2Infinite
-            ? this.infiniteSets.get(set2).definition
+            ? set2Info.definition
             : `{${this._formatElementsArray(this.sets.get(set2))}}`;
+
+        // Obtener muestras para visualización
+        const set1Samples = isSet1Infinite && set1Info.samples
+            ? set1Info.samples
+            : [];
+
+        const set2Samples = isSet2Infinite && set2Info.samples
+            ? set2Info.samples
+            : [];
+
+        let result;
 
         switch (operation) {
             case 'union':
@@ -866,75 +1022,203 @@ class SetTheory {
                     return {
                         type: 'infinite',
                         definition: 'U',
-                        representation: 'U'
+                        representation: 'U',
+                        samples: ['todos los elementos']
                     };
                 }
 
+                if (!isSet1Infinite) {
+                    // Conjunto finito unido con infinito
+                    const elements1 = this.sets.get(set1);
+                    // Combinar los elementos finitos con muestras del infinito
+                    const combinedSamples = [...new Set([
+                        ...elements1.map(el => this._formatSingleElement(el)),
+                        ...set2Samples
+                    ])];
+
+                    return {
+                        type: 'infinite',
+                        definition: `${set1Def} ∪ ${set2Def}`,
+                        representation: `${set1} ∪ ${set2}`,
+                        samples: combinedSamples
+                    };
+                }
+
+                if (!isSet2Infinite) {
+                    // Infinito unido con finito
+                    const elements2 = this.sets.get(set2);
+                    // Combinar muestras del infinito con elementos finitos
+                    const combinedSamples = [...new Set([
+                        ...set1Samples,
+                        ...elements2.map(el => this._formatSingleElement(el))
+                    ])];
+
+                    return {
+                        type: 'infinite',
+                        definition: `${set1Def} ∪ ${set2Def}`,
+                        representation: `${set1} ∪ ${set2}`,
+                        samples: combinedSamples
+                    };
+                }
+
+                // Dos conjuntos infinitos
                 return {
                     type: 'infinite',
                     definition: `${set1Def} ∪ ${set2Def}`,
-                    representation: `${set1} ∪ ${set2}`
+                    representation: `${set1} ∪ ${set2}`,
+                    samples: [...new Set([...set1Samples, ...set2Samples])]
                 };
 
             case 'intersection':
                 if (!isSet1Infinite) {
                     const elements1 = this.sets.get(set1);
-                    const set2Test = this.infiniteSets.get(set2).membershipTest;
-                    return elements1.filter(el => set2Test(el));
+                    const set2Test = set2Info.membershipTest;
+
+                    // Usar el adaptador para compatibilidad
+                    const resultElements = elements1.filter(el => {
+                        try {
+                            return set2Test(this._adaptElementForMembershipTest(el));
+                        } catch (err) {
+                            // Manejar errores en la función de prueba
+                            console.warn(`Error en prueba de pertenencia: ${err.message}`);
+                            return false;
+                        }
+                    });
+
+                    // Asegurar que el formato es correcto
+                    return {
+                        type: 'finite',
+                        elements: resultElements,
+                        representation: `{${this._formatElementsArray(resultElements)}}`
+                    };
                 }
+                
                 if (!isSet2Infinite) {
                     const elements2 = this.sets.get(set2);
-                    const set1Test = this.infiniteSets.get(set1).membershipTest;
-                    return elements2.filter(el => set1Test(el));
+                    const set1Test = set1Info.membershipTest;
+
+                    // Usar el adaptador para compatibilidad
+                    const resultElements = elements2.filter(el => {
+                        try {
+                            return set1Test(this._adaptElementForMembershipTest(el));
+                        } catch (err) {
+                            console.warn(`Error en prueba de pertenencia: ${err.message}`);
+                            return false;
+                        }
+                    });
+
+                    // Asegurar formato correcto
+                    return {
+                        type: 'finite',
+                        elements: resultElements,
+                        representation: `{${this._formatElementsArray(resultElements)}}`
+                    };
                 }
 
+                // Dos conjuntos infinitos - determinación especial por tipo
+                const commonSamples = this._findCommonSamples(set1Samples, set2Samples);
+                
                 return {
                     type: 'infinite',
                     definition: `${set1Def} ∩ ${set2Def}`,
-                    representation: `${set1} ∩ ${set2}`
+                    representation: `${set1} ∩ ${set2}`,
+                    samples: commonSamples.length ? commonSamples : ['...']
                 };
 
             case 'difference':
                 if (!isSet1Infinite) {
                     const elements1 = this.sets.get(set1);
-                    const set2Test = this.infiniteSets.get(set2).membershipTest;
-                    return elements1.filter(el => !set2Test(el));
+                    const set2Test = set2Info.membershipTest;
+
+                    // Usar adaptador y manejar errores
+                    const resultElements = elements1.filter(el => {
+                        try {
+                            return !set2Test(this._adaptElementForMembershipTest(el));
+                        } catch (err) {
+                            console.warn(`Error en prueba de pertenencia: ${err.message}`);
+                            return true; // En caso de error, lo incluimos (enfoque conservador)
+                        }
+                    });
+
+                    return {
+                        type: 'finite',
+                        elements: resultElements,
+                        representation: `{${this._formatElementsArray(resultElements)}}`
+                    };
                 }
 
+                // Conjunto infinito menos otro - muestras especiales
+                const diffSamples = this._computeDifferenceSamples(set1Samples, set2Samples, isSet2Infinite);
+                
                 return {
                     type: 'infinite',
                     definition: `${set1Def} - ${set2Def}`,
-                    representation: `${set1} - ${set2}`
+                    representation: `${set1} - ${set2}`,
+                    samples: diffSamples
                 };
 
             case 'symmetricDifference':
+                // Calcular muestras para diferencia simétrica
+                const symDiffSamples = this._computeSymmetricDifferenceSamples(
+                    set1, set2, set1Samples, set2Samples, isSet1Infinite, isSet2Infinite
+                );
+                
                 return {
                     type: 'infinite',
                     definition: `(${set1Def} - ${set2Def}) ∪ (${set2Def} - ${set1Def})`,
-                    representation: `${set1} Δ ${set2}`
+                    representation: `${set1} Δ ${set2}`,
+                    samples: symDiffSamples
                 };
 
             case 'complement':
                 if (this._isUniversalSet(set2)) {
+                    // Complemento respecto al universo
+                    const complementSamples = isSet1Infinite ? ['elementos fuera de ' + set1] :
+                        this._computeComplementSamples(set1, set2Info, isSet1Infinite);
+                        
                     return {
                         type: 'infinite',
                         definition: `${set2Def} - ${set1Def}`,
-                        representation: `${set1}ᶜ`
+                        representation: `${set1}ᶜ`,
+                        samples: complementSamples
                     };
                 }
 
                 if (!isSet1Infinite) {
-                    return {
-                        type: 'infinite',
-                        definition: `${set2Def} - ${set1Def}`,
-                        representation: `${set2} - ${set1}`
-                    };
+                    // Complemento de un conjunto finito respecto a otro
+                    const elements1 = this.sets.get(set1);
+                    const elements2 = this.sets.get(set2);
+
+                    if (!isSet2Infinite) {
+                        // Ambos finitos, calcular normalmente
+                        const resultElements = elements2.filter(el2 =>
+                            !elements1.some(el1 => this._elementsEqual(el1, el2))
+                        );
+
+                        return {
+                            type: 'finite',
+                            elements: resultElements,
+                            representation: `{${this._formatElementsArray(resultElements)}}`
+                        };
+                    } else {
+                        // Conjunto finito respecto a infinito
+                        const complementSamples = this._computeComplementSamples(set1, set2Info, isSet1Infinite);
+
+                        return {
+                            type: 'infinite',
+                            definition: `${set2Def} - ${set1Def}`,
+                            representation: `${set1}ᶜ en ${set2}`,
+                            samples: complementSamples
+                        };
+                    }
                 }
 
+                // Complemento entre infinitos - usar muestras
                 return {
                     type: 'infinite',
                     definition: `${set2Def} - ${set1Def}`,
-                    representation: `${set2} - ${set1}`
+                    representation: `${set2} - ${set1}`,
+                    samples: this._computeDifferenceSamples(set2Samples, set1Samples, isSet1Infinite)
                 };
 
             case 'isSubset':
@@ -943,12 +1227,34 @@ class SetTheory {
 
                 if (!isSet1Infinite) {
                     const elements = this.sets.get(set1);
-                    const superTest = this.infiniteSets.get(set2).membershipTest;
-                    return elements.every(el => superTest(el));
+                    const superTest = set2Info.membershipTest;
+
+                    try {
+                        const isSubset = elements.every(el => superTest(this._adaptElementForMembershipTest(el)));
+
+                        return {
+                            type: 'relation',
+                            representation: `${set1} ${isSubset ? '⊆' : '⊈'} ${set2}`,
+                            evaluation: isSubset ? 'true' : 'false'
+                        };
+                    } catch (err) {
+                        console.warn(`Error en prueba de subconjunto: ${err.message}`);
+                        return {
+                            type: 'relation',
+                            representation: `${set1} ⊆ ${set2}`,
+                            evaluation: 'indeterminate'
+                        };
+                    }
                 }
 
                 const relation = this._checkKnownSetRelation(set1, set2);
-                if (relation !== null) return relation;
+                if (relation !== null) {
+                    return {
+                        type: 'relation',
+                        representation: `${set1} ${relation ? '⊆' : '⊈'} ${set2}`,
+                        evaluation: relation ? 'true' : 'false'
+                    };
+                }
 
                 return {
                     type: 'relation',
@@ -959,6 +1265,68 @@ class SetTheory {
             default:
                 throw new Error(`Operación '${operation}' no soportada para conjuntos infinitos`);
         }
+    }
+
+    // Método auxiliar para encontrar elementos comunes en las muestras
+    _findCommonSamples(samples1, samples2) {
+        const common = [];
+
+        // Convertir a strings para comparación simple
+        const set2Strings = new Set(samples2.map(String));
+
+        for (const sample of samples1) {
+            if (set2Strings.has(String(sample))) {
+                common.push(sample);
+            }
+        }
+
+        return common.length ? common : ['elementos comunes'];
+    }
+
+    // Método auxiliar para calcular muestras de diferencia
+    _computeDifferenceSamples(samples1, samples2, isSet2Infinite) {
+        if (!isSet2Infinite && samples2.length === 0) {
+            return samples1; // Si el segundo conjunto está vacío, la diferencia es el primer conjunto
+        }
+
+        // Encontrar elementos que estén en samples1 pero no en samples2
+        const diffSamples = [];
+        const set2Strings = new Set(samples2.map(String));
+
+        for (const sample of samples1) {
+            if (!set2Strings.has(String(sample))) {
+                diffSamples.push(sample);
+            }
+        }
+
+        return diffSamples.length ? diffSamples : ['elementos no comunes'];
+    }
+
+    // Método auxiliar para calcular muestras de diferencia simétrica
+    _computeSymmetricDifferenceSamples(set1, set2, samples1, samples2, isSet1Infinite, isSet2Infinite) {
+        const diff1 = this._computeDifferenceSamples(samples1, samples2, isSet2Infinite);
+        const diff2 = this._computeDifferenceSamples(samples2, samples1, isSet1Infinite);
+
+        // Combinar ambas diferencias sin duplicados
+        const combined = [...new Set([...diff1, ...diff2])];
+
+        return combined.length ? combined : ['elementos exclusivos de cada conjunto'];
+    }
+
+    // Método auxiliar para calcular muestras del complemento
+    _computeComplementSamples(set, universeInfo, isSetInfinite) {
+        if (isSetInfinite) {
+            // Para un conjunto infinito, usar una descripción
+            return ['elementos fuera de ' + set];
+        }
+
+        // Para un conjunto finito, si tenemos muestras del universo, calcular diferencia
+        if (universeInfo && universeInfo.samples && universeInfo.samples.length) {
+            return this._computeDifferenceSamples(universeInfo.samples,
+                this.sets.get(set).map(el => this._formatSingleElement(el)), false);
+        }
+
+        return ['elementos del complemento'];
     }
 
     _isUniversalSet(setName) {
@@ -1676,6 +2044,7 @@ class SetTheory {
     getAllSets() {
         const allSets = {};
 
+        // Procesar conjuntos finitos
         for (const [name, elements] of this.sets.entries()) {
             if (!name.startsWith('_temp')) {
                 allSets[name] = {
@@ -1686,11 +2055,16 @@ class SetTheory {
             }
         }
 
+        // Procesar conjuntos infinitos con sus muestras
         for (const [name, info] of this.infiniteSets.entries()) {
             allSets[name] = {
                 type: 'infinite',
                 definition: info.definition,
-                representation: info.definition
+                representation: info.definition,
+                // Pasar las muestras si existen
+                samples: info.samples && Array.isArray(info.samples) ? info.samples : [],
+                // Usar sampleDisplay si está definido
+                sampleDisplay: info.sampleDisplay || info.definition
             };
         }
 
