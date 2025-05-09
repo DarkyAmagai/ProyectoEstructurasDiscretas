@@ -46,6 +46,24 @@ export default function Home() {
               Explorar
             </Link>
           </ContentContainer>
+
+          <ContentContainer title="Sucesiones e Inducción">
+            <p>
+              Las sucesiones y la inducción matemática permiten analizar secuencias de números y
+              demostrar propiedades que se cumplen para todos los números naturales.
+            </p>
+            <div className={globalStyles.imageContainer}>
+              <Image
+                  src="/window.svg"
+                  alt="Sucesiones e Inducción"
+                  width={60}
+                  height={60}
+              />
+            </div>
+            <Link href="/algoritmos/sucesiones" className={globalStyles.button}>
+              Explorar
+            </Link>
+          </ContentContainer>
         </div>
 
         <footer className={globalStyles.footer}>
